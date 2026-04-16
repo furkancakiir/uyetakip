@@ -17,26 +17,27 @@ const BOSH_FORM = {
 };
 
 const ALANLAR = [
-  { key: "teslim_edilen", label: "Teslim", short: "Teslim" },
-  { key: "toplam_yapilabilir", label: "Yapılabilir", short: "Yapı." },
-  { key: "yeni_uye", label: "Yeni Üye", short: "Yeni" },
-  { key: "silinmis_uye", label: "Silinmiş", short: "Sil." },
-  { key: "secmen_olmayan", label: "Seçmen Dışı", short: "Seç." },
-  { key: "il_ilce_disi", label: "İl/İlçe Dışı", short: "İl/İlçe" },
-  { key: "mukerrer", label: "Mükerrer", short: "Mük." },
-  { key: "baska_parti_uyesi", label: "B.Parti", short: "B.P." },
-  { key: "tc_seri_no_hatali", label: "TC Hatalı", short: "Hatalı" },
-  { key: "imzasiz", label: "İmzasız", short: "İmz." },
+  { key: "teslim_edilen", label: "Teslim Edilen", short: "Teslim" },
+  { key: "toplam_yapilabilir", label: "Toplam Yapılabilir", short: "Yapılabilir" },
+  { key: "yeni_uye", label: "Yeni Üye", short: "Yeni Üye" },
+  { key: "silinmis_uye", label: "Silinmiş Üye", short: "Silinmiş" },
+  { key: "secmen_olmayan", label: "Seçmen Olmayan", short: "Seçmen Dışı" },
+  { key: "il_ilce_disi", label: "İl/İlçe Dışı", short: "İl/İlçe Dışı" },
+  { key: "mukerrer", label: "Mükerrer", short: "Mükerrer" },
+  { key: "baska_parti_uyesi", label: "Başka Parti Üyesi", short: "B. Parti" },
+  { key: "tc_seri_no_hatali", label: "TC/Seri No Hatalı", short: "TC Hatalı" },
+  { key: "imzasiz", label: "İmzasız", short: "İmzasız" },
 ];
 
 const KAT_LABELS = {
   ilce_yonetimi: { label: "İlçe Yönetimi", short: "İlçe", icon: "🏛️" },
   mahalle: { label: "Mahalle Başkanları", short: "Mahalle", icon: "🏘️" },
   uye_dostlari: { label: "Üye Dostları", short: "Dostlar", icon: "💪" },
-  belediye_meclis: { label: "Belediye Meclis", short: "Meclis", icon: "🏢" },
+  belediye_meclis: { label: "Belediye Meclis Üyeleri", short: "Meclis", icon: "🏢" },
 };
 
 export default function App() {
+  const [isMobile, setIsMobile] = useState(false);
   const [screen, setScreen] = useState("login");
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginHata, setLoginHata] = useState("");
@@ -57,6 +58,13 @@ export default function App() {
   const [seciliKisi, setSeciliKisi] = useState(null);
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
     kisileriYukle();
     const saved = localStorage.getItem("tutanak_auth");
     if (saved) {
@@ -75,12 +83,17 @@ export default function App() {
     const { data } = await supabase.from("kisiler").select("*").eq("is_active", true).order("isim_soyisim");
     if (data) setKisiler(data);
   }
-  function kisilerByKategori(kat) { return kisiler.filter(k => k.kategori === kat); }
+
+  function kisilerByKategori(kat) {
+    return kisiler.filter(k => k.kategori === kat);
+  }
 
   async function giris() {
     setLoginHata("");
     const { data, error } = await supabase.from("kullanicilar").select("*")
-      .eq("username", loginForm.username.toLowerCase().trim()).eq("password", loginForm.password).eq("is_active", true).single();
+      .eq("username", loginForm.username.toLowerCase().trim())
+      .eq("password", loginForm.password)
+      .eq("is_active", true).single();
     if (error || !data) { setLoginHata("Kullanıcı adı veya şifre hatalı"); return; }
     localStorage.setItem("tutanak_auth", JSON.stringify(data));
     setKullanici(data);
@@ -108,16 +121,33 @@ export default function App() {
   }
 
   async function kullaniciEkle() {
-    if (!yeniKullanici.username || !yeniKullanici.password || !yeniKullanici.display_name) { setKullaniciMesaj("❌ Tüm alanları doldurun"); return; }
-    if (yeniKullanici.rol === "uye" && !yeniKullanici.isim_soyisim) { setKullaniciMesaj("❌ Üye için isim seçin"); return; }
-    const { error } = await supabase.from("kullanicilar").insert([{ username: yeniKullanici.username.toLowerCase().trim(), password: yeniKullanici.password, display_name: yeniKullanici.display_name, rol: yeniKullanici.rol, isim_soyisim: yeniKullanici.rol === "uye" ? yeniKullanici.isim_soyisim : null }]);
-    if (error) { setKullaniciMesaj("❌ " + (error.message.includes("duplicate") ? "Bu kullanıcı adı zaten var" : error.message)); return; }
-    setKullaniciMesaj("✅ Eklendi!");
+    if (!yeniKullanici.username || !yeniKullanici.password || !yeniKullanici.display_name) {
+      setKullaniciMesaj("❌ Tüm alanları doldurun"); return;
+    }
+    if (yeniKullanici.rol === "uye" && !yeniKullanici.isim_soyisim) {
+      setKullaniciMesaj("❌ Üye için isim seçin"); return;
+    }
+    const { error } = await supabase.from("kullanicilar").insert([{
+      username: yeniKullanici.username.toLowerCase().trim(),
+      password: yeniKullanici.password,
+      display_name: yeniKullanici.display_name,
+      rol: yeniKullanici.rol,
+      isim_soyisim: yeniKullanici.rol === "uye" ? yeniKullanici.isim_soyisim : null
+    }]);
+    if (error) {
+      setKullaniciMesaj("❌ " + (error.message.includes("duplicate") ? "Bu kullanıcı adı zaten var" : error.message));
+      return;
+    }
+    setKullaniciMesaj("✅ Kullanıcı eklendi!");
     setYeniKullanici({ username: "", password: "", display_name: "", rol: "uye", isim_soyisim: "" });
     kullanicilariYukle();
+    setTimeout(() => setKullaniciMesaj(""), 3000);
   }
 
-  async function kullaniciSil(id) { await supabase.from("kullanicilar").delete().eq("id", id); kullanicilariYukle(); }
+  async function kullaniciSil(id) {
+    await supabase.from("kullanicilar").delete().eq("id", id);
+    kullanicilariYukle();
+  }
 
   async function kaydet() {
     if (!form.isim_soyisim) { setMesaj("❌ İsim soyisim zorunlu"); return; }
@@ -134,117 +164,996 @@ export default function App() {
     setMesaj("✅ Kaydedildi!");
     setForm({ ...BOSH_FORM, tutanak_tarih: form.tutanak_tarih });
     yukle(kullanici);
+    setTimeout(() => setMesaj(""), 3000);
   }
 
-  async function sil(id) { await supabase.from("tutanak_kayitlari").delete().eq("id", id); setSilOnay(null); yukle(kullanici); }
+  async function sil(id) {
+    await supabase.from("tutanak_kayitlari").delete().eq("id", id);
+    setSilOnay(null);
+    yukle(kullanici);
+  }
 
-  function cikis() { localStorage.removeItem("tutanak_auth"); setKullanici(null); setKayitlar([]); setScreen("login"); }
+  function cikis() {
+    localStorage.removeItem("tutanak_auth");
+    setKullanici(null);
+    setKayitlar([]);
+    setScreen("login");
+    setLoginForm({ username: "", password: "" });
+  }
 
   const isAdmin = kullanici?.rol === "admin";
-  const filtreliKategori = isAdmin ? kayitlar.filter(k => kisilerByKategori(aktifKategori).some(p => p.isim_soyisim === k.isim_soyisim)).filter(k => !filtre || k.isim_soyisim.toLowerCase().includes(filtre.toLowerCase())) : kayitlar;
-  
+
+  const filtreliKategori = isAdmin
+    ? kayitlar.filter(k => kisilerByKategori(aktifKategori).some(p => p.isim_soyisim === k.isim_soyisim))
+        .filter(k => !filtre || k.isim_soyisim.toLowerCase().includes(filtre.toLowerCase()))
+    : kayitlar.filter(k => !filtre || k.isim_soyisim.toLowerCase().includes(filtre.toLowerCase()));
+
   const kisiOzeti = kisilerByKategori(aktifKategori).map(kisi => {
     const kisiKayitlari = kayitlar.filter(k => k.isim_soyisim === kisi.isim_soyisim);
-    return { isim: kisi.isim_soyisim, kayit: kisiKayitlari.length, teslim: kisiKayitlari.reduce((s, k) => s + (k.teslim_edilen || 0), 0), yeni: kisiKayitlari.reduce((s, k) => s + (k.yeni_uye || 0), 0), muk: kisiKayitlari.reduce((s, k) => s + (k.mukerrer || 0), 0), hatali: kisiKayitlari.reduce((s, k) => s + (k.tc_seri_no_hatali || 0), 0) };
-  }).filter(k => !filtre || k.isim.toLowerCase().includes(filtre.toLowerCase())).sort((a, b) => b.yeni - a.yeni);
+    return {
+      isim: kisi.isim_soyisim,
+      kayit: kisiKayitlari.length,
+      teslim: kisiKayitlari.reduce((s, k) => s + (k.teslim_edilen || 0), 0),
+      yapilabilir: kisiKayitlari.reduce((s, k) => s + (k.toplam_yapilabilir || 0), 0),
+      yeni: kisiKayitlari.reduce((s, k) => s + (k.yeni_uye || 0), 0),
+      silinmis: kisiKayitlari.reduce((s, k) => s + (k.silinmis_uye || 0), 0),
+      muk: kisiKayitlari.reduce((s, k) => s + (k.mukerrer || 0), 0),
+      hatali: kisiKayitlari.reduce((s, k) => s + (k.tc_seri_no_hatali || 0), 0)
+    };
+  }).filter(k => !filtre || k.isim.toLowerCase().includes(filtre.toLowerCase()))
+    .sort((a, b) => b.yeni - a.yeni);
 
-  const S = {
-    container: { minHeight: "100vh", background: "#F0F2F5", fontFamily: "-apple-system, sans-serif", paddingBottom: 80 },
-    loginWrap: { minHeight: "100vh", background: "#1A2942", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 },
-    loginBox: { background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 320 },
-    header: { background: "#1A2942", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 100 },
-    bottomNav: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#1A2942", display: "flex", justifyContent: "space-around", padding: "10px 0", zIndex: 100 },
-    navBtn: { background: "transparent", border: "none", display: "flex", flexDirection: "column", alignItems: "center", cursor: "pointer" },
-    content: { padding: 12, maxWidth: 500, margin: "0 auto" },
-    card: { background: "#fff", borderRadius: 12, padding: 16, marginBottom: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" },
-    cardTitle: { fontSize: 15, fontWeight: 700, color: "#1A2942", marginBottom: 14, borderBottom: "2px solid #F4A620", paddingBottom: 8 },
-    label: { display: "block", fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 4 },
-    input: { width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: 10, fontSize: 16, boxSizing: "border-box" },
-    btn: { width: "100%", padding: 14, background: "#1A2942", color: "#fff", border: "none", borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: "pointer" },
-    tabsRow: { display: "flex", gap: 6, marginBottom: 12, overflowX: "auto", paddingBottom: 4 },
-    tab: { padding: "10px 12px", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
-    summaryRow: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 },
-    summaryCard: { background: "#fff", borderRadius: 10, padding: 12, textAlign: "center" },
-    summaryVal: { fontSize: 20, fontWeight: 700, color: "#1A2942" },
-    summaryLbl: { fontSize: 10, color: "#888" },
-    personCard: { background: "#fff", borderRadius: 10, padding: 14, marginBottom: 8, cursor: "pointer" },
-    recordCard: { background: "#fff", borderRadius: 10, padding: 14, marginBottom: 8 },
-    totalBar: { background: "#1A2942", color: "#fff", borderRadius: 10, padding: 14, marginTop: 8 },
-    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 },
-    grid3: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 },
-    msg: { padding: 10, borderRadius: 8, fontSize: 13, marginBottom: 12 },
-    userRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #eee" },
-    badge: { padding: "3px 10px", borderRadius: 4, fontSize: 11, fontWeight: 700 },
+  // STILLER
+  const styles = {
+    // Container
+    container: {
+      minHeight: "100vh",
+      background: "#F0F2F5",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      paddingBottom: isMobile && isAdmin ? 70 : 20,
+    },
+    // Login
+    loginWrap: {
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #1A2942 0%, #2d4a6f 100%)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+    },
+    loginBox: {
+      background: "#fff",
+      borderRadius: 16,
+      padding: isMobile ? "28px 20px" : "40px 36px",
+      width: "100%",
+      maxWidth: 380,
+      boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+    },
+    // Header
+    header: {
+      background: "#1A2942",
+      padding: isMobile ? "12px 16px" : "16px 32px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      position: "sticky",
+      top: 0,
+      zIndex: 100,
+    },
+    // Bottom Nav (sadece mobil)
+    bottomNav: {
+      position: "fixed",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      background: "#1A2942",
+      display: "flex",
+      justifyContent: "space-around",
+      padding: "10px 0",
+      zIndex: 100,
+      borderTop: "1px solid #2a3f5f",
+    },
+    navBtn: {
+      background: "transparent",
+      border: "none",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      cursor: "pointer",
+      padding: "4px 12px",
+    },
+    // Desktop Sidebar Nav
+    sideNav: {
+      width: 220,
+      background: "#1A2942",
+      minHeight: "calc(100vh - 60px)",
+      padding: "20px 0",
+      position: "fixed",
+      left: 0,
+      top: 60,
+    },
+    sideNavBtn: {
+      width: "100%",
+      padding: "14px 24px",
+      background: "transparent",
+      border: "none",
+      textAlign: "left",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      fontSize: 14,
+      fontWeight: 500,
+      transition: "all 0.2s",
+    },
+    // Content
+    content: {
+      padding: isMobile ? 12 : 24,
+      maxWidth: isMobile ? 500 : 900,
+      margin: isMobile ? "0 auto" : "0 auto 0 240px",
+    },
+    // Card
+    card: {
+      background: "#fff",
+      borderRadius: 12,
+      padding: isMobile ? 16 : 24,
+      marginBottom: isMobile ? 12 : 20,
+      boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+    },
+    cardTitle: {
+      fontSize: isMobile ? 15 : 18,
+      fontWeight: 700,
+      color: "#1A2942",
+      marginBottom: 16,
+      paddingBottom: 12,
+      borderBottom: "2px solid #F4A620",
+    },
+    // Form
+    label: {
+      display: "block",
+      fontSize: isMobile ? 12 : 13,
+      fontWeight: 600,
+      color: "#555",
+      marginBottom: 6,
+    },
+    input: {
+      width: "100%",
+      padding: isMobile ? "12px" : "10px 14px",
+      border: "1px solid #ddd",
+      borderRadius: 8,
+      fontSize: isMobile ? 16 : 14,
+      boxSizing: "border-box",
+      transition: "border-color 0.2s",
+    },
+    btn: {
+      padding: isMobile ? "14px 20px" : "12px 24px",
+      background: "#1A2942",
+      color: "#fff",
+      border: "none",
+      borderRadius: 8,
+      fontSize: isMobile ? 16 : 14,
+      fontWeight: 600,
+      cursor: "pointer",
+      transition: "background 0.2s",
+    },
+    // Tabs
+    tabsRow: {
+      display: "flex",
+      gap: isMobile ? 6 : 8,
+      marginBottom: isMobile ? 12 : 16,
+      overflowX: "auto",
+      paddingBottom: 4,
+    },
+    tab: {
+      padding: isMobile ? "10px 14px" : "10px 20px",
+      border: "none",
+      borderRadius: 8,
+      fontSize: isMobile ? 12 : 14,
+      fontWeight: 600,
+      cursor: "pointer",
+      whiteSpace: "nowrap",
+      transition: "all 0.2s",
+    },
+    // Summary Cards
+    summaryRow: {
+      display: "grid",
+      gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : "repeat(4, 1fr)",
+      gap: isMobile ? 8 : 16,
+      marginBottom: isMobile ? 12 : 20,
+    },
+    summaryCard: {
+      background: "#fff",
+      borderRadius: 10,
+      padding: isMobile ? "12px 8px" : "20px 16px",
+      textAlign: "center",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    },
+    summaryVal: {
+      fontSize: isMobile ? 20 : 28,
+      fontWeight: 700,
+      color: "#1A2942",
+    },
+    summaryLbl: {
+      fontSize: isMobile ? 10 : 12,
+      color: "#888",
+      marginTop: 4,
+    },
+    // Person/Record Cards
+    personCard: {
+      background: "#fff",
+      borderRadius: 10,
+      padding: isMobile ? 14 : 18,
+      marginBottom: isMobile ? 8 : 12,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      cursor: "pointer",
+      transition: "box-shadow 0.2s",
+    },
+    recordCard: {
+      background: "#fff",
+      borderRadius: 10,
+      padding: isMobile ? 14 : 18,
+      marginBottom: isMobile ? 8 : 12,
+      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+    },
+    totalBar: {
+      background: "#1A2942",
+      color: "#fff",
+      borderRadius: 10,
+      padding: isMobile ? 14 : 18,
+      marginTop: 12,
+    },
+    // Grid
+    grid2: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: isMobile ? 10 : 16,
+      marginBottom: isMobile ? 12 : 16,
+    },
+    grid5: {
+      display: "grid",
+      gridTemplateColumns: isMobile ? "repeat(3, 1fr)" : "repeat(5, 1fr)",
+      gap: isMobile ? 8 : 12,
+      marginBottom: isMobile ? 12 : 16,
+    },
+    // Table (PC only)
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      fontSize: 13,
+    },
+    th: {
+      background: "#f5f5f5",
+      padding: "12px 10px",
+      textAlign: "left",
+      fontWeight: 600,
+      borderBottom: "2px solid #ddd",
+      whiteSpace: "nowrap",
+    },
+    td: {
+      padding: "12px 10px",
+      borderBottom: "1px solid #eee",
+    },
+    // Misc
+    msg: {
+      padding: isMobile ? 10 : 12,
+      borderRadius: 8,
+      fontSize: 13,
+      marginBottom: 12,
+    },
+    badge: {
+      padding: "4px 12px",
+      borderRadius: 4,
+      fontSize: 11,
+      fontWeight: 700,
+    },
+    userRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "14px 0",
+      borderBottom: "1px solid #eee",
+    },
   };
 
-  if (screen === "login") return (
-    <div style={S.loginWrap}>
-      <div style={S.loginBox}>
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 10, color: "#F4A620", fontWeight: 700 }}>BİLGİ VE İLETİŞİM TEKNOLOJİLERİ</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#1A2942" }}>Üye Takip Sistemi</div>
-        </div>
-        <div style={{ marginBottom: 12 }}><label style={S.label}>Kullanıcı Adı</label><input style={S.input} value={loginForm.username} onChange={e => setLoginForm(p => ({ ...p, username: e.target.value }))} onKeyDown={e => e.key === "Enter" && giris()} /></div>
-        <div style={{ marginBottom: 16 }}><label style={S.label}>Şifre</label><input style={S.input} type="password" value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))} onKeyDown={e => e.key === "Enter" && giris()} /></div>
-        {loginHata && <div style={{ color: "#c0392b", fontSize: 13, marginBottom: 12, textAlign: "center" }}>{loginHata}</div>}
-        <button style={S.btn} onClick={giris}>Giriş Yap</button>
-      </div>
-    </div>
-  );
+  // LOGIN SCREEN
+  if (screen === "login") {
+    return (
+      <div style={styles.loginWrap}>
+        <div style={styles.loginBox}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 11, color: "#F4A620", fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>
+              BİLGİ VE İLETİŞİM TEKNOLOJİLERİ KOMİSYONU
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#1A2942" }}>Üye Takip Sistemi</div>
+          </div>
 
+          <div style={{ marginBottom: 16 }}>
+            <label style={styles.label}>Kullanıcı Adı</label>
+            <input
+              style={styles.input}
+              value={loginForm.username}
+              onChange={e => setLoginForm(p => ({ ...p, username: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && giris()}
+              autoFocus
+            />
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={styles.label}>Şifre</label>
+            <input
+              style={styles.input}
+              type="password"
+              value={loginForm.password}
+              onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}
+              onKeyDown={e => e.key === "Enter" && giris()}
+            />
+          </div>
+
+          {loginHata && (
+            <div style={{ color: "#c0392b", fontSize: 13, marginBottom: 16, textAlign: "center" }}>
+              {loginHata}
+            </div>
+          )}
+
+          <button style={{ ...styles.btn, width: "100%" }} onClick={giris}>
+            Giriş Yap
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // MAIN APP
   return (
-    <div style={S.container}>
-      <div style={S.header}>
-        <div><div style={{ color: "#F4A620", fontWeight: 700, fontSize: 10 }}>BİLGİ VE İLETİŞİM TEKNOLOJİLERİ</div><div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>Üye Takip</div></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ color: "#8A9BB5", fontSize: 11 }}>{kullanici?.display_name?.split(" ")[0]}</span>
-          <button style={{ padding: "6px 12px", background: "transparent", color: "#c0392b", border: "1px solid #c0392b", borderRadius: 6, fontSize: 12 }} onClick={cikis}>Çıkış</button>
+    <div style={styles.container}>
+      {/* HEADER */}
+      <div style={styles.header}>
+        <div>
+          <div style={{ color: "#F4A620", fontWeight: 700, fontSize: isMobile ? 10 : 11 }}>
+            BİLGİ VE İLETİŞİM TEKNOLOJİLERİ KOMİSYONU
+          </div>
+          <div style={{ color: "#fff", fontWeight: 700, fontSize: isMobile ? 14 : 18 }}>
+            Üye Takip Sistemi
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ color: "#8A9BB5", fontSize: isMobile ? 11 : 13 }}>
+            {kullanici?.display_name}
+          </span>
+          <button
+            style={{
+              padding: "8px 16px",
+              background: "transparent",
+              color: "#ff6b6b",
+              border: "1px solid #ff6b6b",
+              borderRadius: 6,
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+            onClick={cikis}
+          >
+            Çıkış
+          </button>
         </div>
       </div>
 
-      {isAdmin && (
-        <div style={S.bottomNav}>
-          <button style={{ ...S.navBtn, color: screen === "form" ? "#F4A620" : "#8A9BB5" }} onClick={() => setScreen("form")}><span style={{ fontSize: 20 }}>📝</span><span style={{ fontSize: 10 }}>Kayıt</span></button>
-          <button style={{ ...S.navBtn, color: screen === "liste" ? "#F4A620" : "#8A9BB5" }} onClick={() => { setScreen("liste"); yukle(kullanici); }}><span style={{ fontSize: 20 }}>📊</span><span style={{ fontSize: 10 }}>Liste</span></button>
-          <button style={{ ...S.navBtn, color: screen === "rapor" ? "#F4A620" : "#8A9BB5" }} onClick={() => { setScreen("rapor"); yukle(kullanici); }}><span style={{ fontSize: 20 }}>📈</span><span style={{ fontSize: 10 }}>Rapor</span></button>
-          <button style={{ ...S.navBtn, color: screen === "kullanicilar" ? "#F4A620" : "#8A9BB5" }} onClick={() => { setScreen("kullanicilar"); kullanicilariYukle(); }}><span style={{ fontSize: 20 }}>👥</span><span style={{ fontSize: 10 }}>Kullanıcı</span></button>
+      {/* DESKTOP SIDEBAR NAV */}
+      {!isMobile && isAdmin && (
+        <div style={styles.sideNav}>
+          {[
+            { key: "form", icon: "📝", label: "Yeni Kayıt" },
+            { key: "liste", icon: "📊", label: "Liste" },
+            { key: "rapor", icon: "📈", label: "Raporlar" },
+            { key: "kullanicilar", icon: "👥", label: "Kullanıcılar" },
+          ].map(item => (
+            <button
+              key={item.key}
+              style={{
+                ...styles.sideNavBtn,
+                background: screen === item.key ? "rgba(244,166,32,0.15)" : "transparent",
+                color: screen === item.key ? "#F4A620" : "#8A9BB5",
+                borderLeft: screen === item.key ? "3px solid #F4A620" : "3px solid transparent",
+              }}
+              onClick={() => {
+                setScreen(item.key);
+                if (item.key === "liste" || item.key === "rapor") yukle(kullanici);
+                if (item.key === "kullanicilar") kullanicilariYukle();
+              }}
+            >
+              <span style={{ fontSize: 18 }}>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
         </div>
       )}
 
-      <div style={S.content}>
-        {!isAdmin && hataliUyari > 0 && <div style={{ background: "#FFF3CD", border: "1px solid #FFCA28", borderRadius: 10, padding: 14, marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}><span style={{ fontSize: 24 }}>⚠️</span><div><div style={{ fontWeight: 700, color: "#856404", fontSize: 13 }}>Hatalı Kayıt</div><div style={{ fontSize: 12, color: "#856404" }}><strong>{hataliUyari}</strong> adet TC hatalı</div></div></div>}
+      {/* MOBILE BOTTOM NAV */}
+      {isMobile && isAdmin && (
+        <div style={styles.bottomNav}>
+          {[
+            { key: "form", icon: "📝", label: "Kayıt" },
+            { key: "liste", icon: "📊", label: "Liste" },
+            { key: "rapor", icon: "📈", label: "Rapor" },
+            { key: "kullanicilar", icon: "👥", label: "Kullanıcı" },
+          ].map(item => (
+            <button
+              key={item.key}
+              style={{ ...styles.navBtn, color: screen === item.key ? "#F4A620" : "#8A9BB5" }}
+              onClick={() => {
+                setScreen(item.key);
+                if (item.key === "liste" || item.key === "rapor") yukle(kullanici);
+                if (item.key === "kullanicilar") kullanicilariYukle();
+              }}
+            >
+              <span style={{ fontSize: 20 }}>{item.icon}</span>
+              <span style={{ fontSize: 10 }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
-        {screen === "form" && isAdmin && (
-          <div style={S.card}>
-            <div style={S.cardTitle}>📝 Yeni Tutanak</div>
-            <div style={{ marginBottom: 12 }}><label style={S.label}>Tarih</label><input style={S.input} type="date" value={form.tutanak_tarih} onChange={e => setForm(p => ({ ...p, tutanak_tarih: e.target.value }))} /></div>
-            <div style={{ marginBottom: 12 }}><label style={S.label}>Tutanak No</label><input style={S.input} placeholder="AK00001" value={form.tutanak_no} onChange={e => setForm(p => ({ ...p, tutanak_no: e.target.value }))} /></div>
-            <div style={{ marginBottom: 12 }}><label style={S.label}>İsim Soyisim *</label><select style={S.input} value={form.isim_soyisim} onChange={e => setForm(p => ({ ...p, isim_soyisim: e.target.value }))}><option value="">-- Seçiniz --</option>{Object.entries(KAT_LABELS).map(([key, val]) => <optgroup key={key} label={`${val.icon} ${val.short}`}>{kisilerByKategori(key).map(k => <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>)}</optgroup>)}</select></div>
-            <div style={S.grid2}>{ALANLAR.slice(0, 4).map(a => <div key={a.key}><label style={{ ...S.label, fontSize: 10 }}>{a.short}</label><input style={{ ...S.input, textAlign: "center" }} type="number" min="0" placeholder="0" value={form[a.key]} onChange={e => setForm(p => ({ ...p, [a.key]: e.target.value }))} /></div>)}</div>
-            <div style={S.grid3}>{ALANLAR.slice(4).map(a => <div key={a.key}><label style={{ ...S.label, fontSize: 10 }}>{a.short}</label><input style={{ ...S.input, textAlign: "center", padding: 10, background: a.key === "tc_seri_no_hatali" ? "#FFF8E1" : "#fff" }} type="number" min="0" placeholder="0" value={form[a.key]} onChange={e => setForm(p => ({ ...p, [a.key]: e.target.value }))} /></div>)}</div>
-            <div style={{ marginTop: 12, marginBottom: 12 }}><label style={S.label}>Notlar</label><input style={S.input} placeholder="Özel not..." value={form.notlar} onChange={e => setForm(p => ({ ...p, notlar: e.target.value }))} /></div>
-            {mesaj && <div style={{ ...S.msg, background: mesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea", color: mesaj.startsWith("✅") ? "#2e7d32" : "#c0392b" }}>{mesaj}</div>}
-            <div style={{ display: "flex", gap: 10 }}><button style={{ ...S.btn, flex: 1 }} onClick={kaydet} disabled={yukleniyor}>{yukleniyor ? "..." : "💾 Kaydet"}</button><button style={{ ...S.btn, background: "#e0e0e0", color: "#555", flex: 0.4 }} onClick={() => setForm(BOSH_FORM)}>Temizle</button></div>
+      {/* CONTENT */}
+      <div style={styles.content}>
+        {/* ÜYE UYARI */}
+        {!isAdmin && hataliUyari > 0 && (
+          <div style={{
+            background: "#FFF3CD",
+            border: "1px solid #FFCA28",
+            borderRadius: 10,
+            padding: 16,
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}>
+            <span style={{ fontSize: 28 }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 700, color: "#856404", fontSize: 14 }}>Hatalı Kayıt Bildirimi</div>
+              <div style={{ fontSize: 13, color: "#856404" }}>
+                <strong>{hataliUyari}</strong> adet TC/Seri No hatalı kaydınız bulunmaktadır.
+              </div>
+            </div>
           </div>
         )}
 
+        {/* FORM EKRANI */}
+        {screen === "form" && isAdmin && (
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>📝 Yeni Tutanak Kaydı</div>
+
+            <div style={styles.grid2}>
+              <div>
+                <label style={styles.label}>Tarih</label>
+                <input
+                  style={styles.input}
+                  type="date"
+                  value={form.tutanak_tarih}
+                  onChange={e => setForm(p => ({ ...p, tutanak_tarih: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label style={styles.label}>Tutanak No</label>
+                <input
+                  style={styles.input}
+                  placeholder="AK00001"
+                  value={form.tutanak_no}
+                  onChange={e => setForm(p => ({ ...p, tutanak_no: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={styles.label}>İsim Soyisim *</label>
+              <select
+                style={styles.input}
+                value={form.isim_soyisim}
+                onChange={e => setForm(p => ({ ...p, isim_soyisim: e.target.value }))}
+              >
+                <option value="">-- Seçiniz --</option>
+                {Object.entries(KAT_LABELS).map(([key, val]) => (
+                  <optgroup key={key} label={`${val.icon} ${val.label}`}>
+                    {kisilerByKategori(key).map(k => (
+                      <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.grid5}>
+              {ALANLAR.map(a => (
+                <div key={a.key}>
+                  <label style={{ ...styles.label, fontSize: isMobile ? 10 : 12 }}>
+                    {isMobile ? a.short : a.label}
+                  </label>
+                  <input
+                    style={{
+                      ...styles.input,
+                      textAlign: "center",
+                      padding: isMobile ? 10 : 10,
+                      background: a.key === "tc_seri_no_hatali" ? "#FFF8E1" : "#fff",
+                    }}
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={form[a.key]}
+                    onChange={e => setForm(p => ({ ...p, [a.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={styles.label}>Notlar</label>
+              <input
+                style={styles.input}
+                placeholder="Özel not ekleyebilirsiniz..."
+                value={form.notlar}
+                onChange={e => setForm(p => ({ ...p, notlar: e.target.value }))}
+              />
+            </div>
+
+            {mesaj && (
+              <div style={{
+                ...styles.msg,
+                background: mesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea",
+                color: mesaj.startsWith("✅") ? "#2e7d32" : "#c0392b",
+              }}>
+                {mesaj}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                style={{ ...styles.btn, flex: 1 }}
+                onClick={kaydet}
+                disabled={yukleniyor}
+              >
+                {yukleniyor ? "Kaydediliyor..." : "💾 Kaydet"}
+              </button>
+              <button
+                style={{ ...styles.btn, background: "#e0e0e0", color: "#555" }}
+                onClick={() => setForm(BOSH_FORM)}
+              >
+                Temizle
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* LİSTE EKRANI */}
         {screen === "liste" && (
           <div>
-            {isAdmin && <div style={S.tabsRow}>{Object.entries(KAT_LABELS).map(([key, val]) => <button key={key} onClick={() => setAktifKategori(key)} style={{ ...S.tab, background: aktifKategori === key ? "#1A2942" : "#fff", color: aktifKategori === key ? "#fff" : "#555" }}>{val.icon} {val.short}</button>)}</div>}
-            {isAdmin && <div style={{ display: "flex", gap: 6, marginBottom: 12 }}><button onClick={() => setGorunumModu("kisiler")} style={{ ...S.tab, background: gorunumModu === "kisiler" ? "#2e7d32" : "#e0e0e0", color: gorunumModu === "kisiler" ? "#fff" : "#555" }}>👥 Kişiler</button><button onClick={() => setGorunumModu("kayitlar")} style={{ ...S.tab, background: gorunumModu === "kayitlar" ? "#2e7d32" : "#e0e0e0", color: gorunumModu === "kayitlar" ? "#fff" : "#555" }}>📋 Kayıtlar</button></div>}
-            <input style={{ ...S.input, marginBottom: 12 }} placeholder="🔍 İsim ara..." value={filtre} onChange={e => setFiltre(e.target.value)} />
+            {/* Kategori Tabs */}
+            {isAdmin && (
+              <div style={styles.tabsRow}>
+                {Object.entries(KAT_LABELS).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => setAktifKategori(key)}
+                    style={{
+                      ...styles.tab,
+                      background: aktifKategori === key ? "#1A2942" : "#fff",
+                      color: aktifKategori === key ? "#fff" : "#555",
+                    }}
+                  >
+                    {val.icon} {isMobile ? val.short : val.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {!isAdmin && <div style={S.summaryRow}><div style={S.summaryCard}><div style={S.summaryVal}>{kayitlar.reduce((s, k) => s + (k.teslim_edilen || 0), 0)}</div><div style={S.summaryLbl}>Teslim</div></div><div style={S.summaryCard}><div style={{ ...S.summaryVal, color: "#2e7d32" }}>{kayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0)}</div><div style={S.summaryLbl}>Yeni</div></div><div style={S.summaryCard}><div style={{ ...S.summaryVal, color: "#c0392b" }}>{kayitlar.reduce((s, k) => s + (k.mukerrer || 0), 0)}</div><div style={S.summaryLbl}>Mük.</div></div><div style={S.summaryCard}><div style={{ ...S.summaryVal, color: "#FF8F00" }}>{hataliUyari}</div><div style={S.summaryLbl}>Hatalı</div></div></div>}
+            {/* Görünüm Toggle */}
+            {isAdmin && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                <button
+                  onClick={() => setGorunumModu("kisiler")}
+                  style={{
+                    ...styles.tab,
+                    background: gorunumModu === "kisiler" ? "#2e7d32" : "#e0e0e0",
+                    color: gorunumModu === "kisiler" ? "#fff" : "#555",
+                  }}
+                >
+                  👥 Kişiler
+                </button>
+                <button
+                  onClick={() => setGorunumModu("kayitlar")}
+                  style={{
+                    ...styles.tab,
+                    background: gorunumModu === "kayitlar" ? "#2e7d32" : "#e0e0e0",
+                    color: gorunumModu === "kayitlar" ? "#fff" : "#555",
+                  }}
+                >
+                  📋 Kayıtlar
+                </button>
+              </div>
+            )}
 
-            {isAdmin && gorunumModu === "kisiler" && <div>{kisiOzeti.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#999" }}>Kişi yok</div>}{kisiOzeti.map(k => <div key={k.isim} style={{ ...S.personCard, background: k.kayit === 0 ? "#FFF8E1" : "#fff" }} onClick={() => setSeciliKisi(seciliKisi === k.isim ? null : k.isim)}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><div style={{ fontWeight: 600, fontSize: 14 }}>{k.isim}</div>{k.kayit === 0 && <span style={{ fontSize: 10, color: "#FF8F00" }}>⚠️ Kayıt yok</span>}</div><div style={{ textAlign: "right" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</div><div style={{ fontSize: 9, color: "#888" }}>Yeni Üye</div></div></div>{seciliKisi === k.isim && <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 12 }}><div>Kayıt: <strong>{k.kayit}</strong></div><div>Teslim: <strong>{k.teslim}</strong></div><div>Mükerrer: <strong style={{ color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</strong></div><div>Hatalı: <strong style={{ color: k.hatali > 0 ? "#FF8F00" : "inherit" }}>{k.hatali}</strong></div></div>}</div>)}{kisiOzeti.length > 0 && <div style={S.totalBar}><div style={{ fontWeight: 700, fontSize: 13 }}>TOPLAM ({kisiOzeti.length} kişi)</div><div style={{ display: "flex", gap: 16, marginTop: 6, fontSize: 12, flexWrap: "wrap" }}><span>Teslim: <strong>{kisiOzeti.reduce((s, k) => s + k.teslim, 0)}</strong></span><span style={{ color: "#F4A620" }}>Yeni: <strong>{kisiOzeti.reduce((s, k) => s + k.yeni, 0)}</strong></span><span>Mük: <strong>{kisiOzeti.reduce((s, k) => s + k.muk, 0)}</strong></span></div></div>}</div>}
+            {/* Arama */}
+            <input
+              style={{ ...styles.input, marginBottom: 16 }}
+              placeholder="🔍 İsim ara..."
+              value={filtre}
+              onChange={e => setFiltre(e.target.value)}
+            />
 
-            {(gorunumModu === "kayitlar" || !isAdmin) && <div>{filtreliKategori.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#999" }}>Kayıt yok</div>}{filtreliKategori.map(k => <div key={k.id} style={S.recordCard}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}><div><div style={{ fontWeight: 600, fontSize: 13 }}>{k.isim_soyisim}</div><div style={{ fontSize: 11, color: "#888" }}>{k.tutanak_tarih} {k.tutanak_no && `• ${k.tutanak_no}`}</div></div><div style={{ textAlign: "right" }}><div style={{ fontSize: 18, fontWeight: 700, color: "#2e7d32" }}>{k.yeni_uye}</div><div style={{ fontSize: 9, color: "#888" }}>Yeni</div></div></div><div style={{ display: "flex", gap: 10, fontSize: 12, color: "#666", flexWrap: "wrap" }}><span>Teslim: <strong>{k.teslim_edilen}</strong></span>{k.mukerrer > 0 && <span style={{ color: "#c0392b" }}>Mük: <strong>{k.mukerrer}</strong></span>}{k.tc_seri_no_hatali > 0 && <span style={{ color: "#FF8F00", background: "#FFF8E1", padding: "1px 4px", borderRadius: 3 }}>Hatalı: <strong>{k.tc_seri_no_hatali}</strong></span>}</div>{isAdmin && <div style={{ marginTop: 8, textAlign: "right" }}>{silOnay === k.id ? <span><button style={{ fontSize: 12, background: "#c0392b", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", marginRight: 6 }} onClick={() => sil(k.id)}>Sil</button><button style={{ fontSize: 12, background: "#ccc", border: "none", borderRadius: 4, padding: "4px 10px" }} onClick={() => setSilOnay(null)}>İptal</button></span> : <button style={{ fontSize: 14, background: "transparent", border: "none" }} onClick={() => setSilOnay(k.id)}>🗑️</button>}</div>}</div>)}</div>}
+            {/* ÜYE ÖZET KARTLARI */}
+            {!isAdmin && (
+              <div style={styles.summaryRow}>
+                <div style={styles.summaryCard}>
+                  <div style={styles.summaryVal}>{kayitlar.reduce((s, k) => s + (k.teslim_edilen || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>Teslim</div>
+                </div>
+                <div style={styles.summaryCard}>
+                  <div style={{ ...styles.summaryVal, color: "#2e7d32" }}>{kayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>Yeni Üye</div>
+                </div>
+                <div style={styles.summaryCard}>
+                  <div style={{ ...styles.summaryVal, color: "#c0392b" }}>{kayitlar.reduce((s, k) => s + (k.mukerrer || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>Mükerrer</div>
+                </div>
+                <div style={styles.summaryCard}>
+                  <div style={{ ...styles.summaryVal, color: "#FF8F00" }}>{hataliUyari}</div>
+                  <div style={styles.summaryLbl}>Hatalı</div>
+                </div>
+              </div>
+            )}
+
+            {/* KİŞİ LİSTESİ */}
+            {isAdmin && gorunumModu === "kisiler" && (
+              <div>
+                {/* PC: Tablo, Mobil: Kart */}
+                {!isMobile ? (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>İsim Soyisim</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>Kayıt</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>Teslim</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>Yapılabilir</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#2e7d32" }}>Yeni Üye</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#c0392b" }}>Mükerrer</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#FF8F00" }}>TC Hatalı</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {kisiOzeti.map(k => (
+                        <tr key={k.isim} style={{ background: k.kayit === 0 ? "#FFF8E1" : "#fff" }}>
+                          <td style={styles.td}>
+                            <strong>{k.isim}</strong>
+                            {k.kayit === 0 && <span style={{ fontSize: 11, color: "#FF8F00", marginLeft: 8 }}>⚠️ Kayıt yok</span>}
+                          </td>
+                          <td style={{ ...styles.td, textAlign: "center" }}>{k.kayit}</td>
+                          <td style={{ ...styles.td, textAlign: "center" }}>{k.teslim}</td>
+                          <td style={{ ...styles.td, textAlign: "center" }}>{k.yapilabilir}</td>
+                          <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</td>
+                          <td style={{ ...styles.td, textAlign: "center", color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</td>
+                          <td style={{ ...styles.td, textAlign: "center", color: k.hatali > 0 ? "#FF8F00" : "inherit" }}>{k.hatali}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background: "#1A2942", color: "#fff" }}>
+                        <td style={{ ...styles.td, fontWeight: 700 }}>TOPLAM ({kisiOzeti.length} kişi)</td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.kayit, 0)}</td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.teslim, 0)}</td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.yapilabilir, 0)}</td>
+                        <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#F4A620" }}>{kisiOzeti.reduce((s, k) => s + k.yeni, 0)}</td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.muk, 0)}</td>
+                        <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.hatali, 0)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  // MOBİL KART GÖRÜNÜMÜ
+                  <div>
+                    {kisiOzeti.length === 0 && (
+                      <div style={{ textAlign: "center", padding: 32, color: "#999" }}>Kişi bulunamadı</div>
+                    )}
+                    {kisiOzeti.map(k => (
+                      <div
+                        key={k.isim}
+                        style={{ ...styles.personCard, background: k.kayit === 0 ? "#FFF8E1" : "#fff" }}
+                        onClick={() => setSeciliKisi(seciliKisi === k.isim ? null : k.isim)}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{k.isim}</div>
+                            {k.kayit === 0 && <span style={{ fontSize: 10, color: "#FF8F00" }}>⚠️ Kayıt yok</span>}
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 22, fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</div>
+                            <div style={{ fontSize: 9, color: "#888" }}>Yeni Üye</div>
+                          </div>
+                        </div>
+                        {seciliKisi === k.isim && (
+                          <div style={{
+                            marginTop: 12,
+                            paddingTop: 12,
+                            borderTop: "1px solid #eee",
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 8,
+                            fontSize: 12,
+                          }}>
+                            <div>Kayıt: <strong>{k.kayit}</strong></div>
+                            <div>Teslim: <strong>{k.teslim}</strong></div>
+                            <div>Yapılabilir: <strong>{k.yapilabilir}</strong></div>
+                            <div>Silinmiş: <strong>{k.silinmis}</strong></div>
+                            <div>Mükerrer: <strong style={{ color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</strong></div>
+                            <div>Hatalı: <strong style={{ color: k.hatali > 0 ? "#FF8F00" : "inherit" }}>{k.hatali}</strong></div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {kisiOzeti.length > 0 && (
+                      <div style={styles.totalBar}>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>TOPLAM ({kisiOzeti.length} kişi)</div>
+                        <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, flexWrap: "wrap" }}>
+                          <span>Teslim: <strong>{kisiOzeti.reduce((s, k) => s + k.teslim, 0)}</strong></span>
+                          <span style={{ color: "#F4A620" }}>Yeni Üye: <strong>{kisiOzeti.reduce((s, k) => s + k.yeni, 0)}</strong></span>
+                          <span>Mükerrer: <strong>{kisiOzeti.reduce((s, k) => s + k.muk, 0)}</strong></span>
+                          <span>Hatalı: <strong>{kisiOzeti.reduce((s, k) => s + k.hatali, 0)}</strong></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* KAYIT LİSTESİ */}
+            {(gorunumModu === "kayitlar" || !isAdmin) && (
+              <div>
+                {filtreliKategori.length === 0 && (
+                  <div style={{ textAlign: "center", padding: 32, color: "#999" }}>Kayıt bulunamadı</div>
+                )}
+                {!isMobile && isAdmin ? (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Tarih</th>
+                        <th style={styles.th}>Tutanak No</th>
+                        <th style={styles.th}>İsim Soyisim</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>Teslim</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#2e7d32" }}>Yeni</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#c0392b" }}>Mük.</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#FF8F00" }}>Hatalı</th>
+                        <th style={styles.th}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtreliKategori.map(k => (
+                        <tr key={k.id}>
+                          <td style={styles.td}>{k.tutanak_tarih}</td>
+                          <td style={styles.td}>{k.tutanak_no || "-"}</td>
+                          <td style={styles.td}><strong>{k.isim_soyisim}</strong></td>
+                          <td style={{ ...styles.td, textAlign: "center" }}>{k.teslim_edilen}</td>
+                          <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#2e7d32" }}>{k.yeni_uye}</td>
+                          <td style={{ ...styles.td, textAlign: "center", color: k.mukerrer > 0 ? "#c0392b" : "inherit" }}>{k.mukerrer}</td>
+                          <td style={{ ...styles.td, textAlign: "center", color: k.tc_seri_no_hatali > 0 ? "#FF8F00" : "inherit" }}>{k.tc_seri_no_hatali}</td>
+                          <td style={styles.td}>
+                            {silOnay === k.id ? (
+                              <span>
+                                <button style={{ fontSize: 12, background: "#c0392b", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", marginRight: 6, cursor: "pointer" }} onClick={() => sil(k.id)}>Sil</button>
+                                <button style={{ fontSize: 12, background: "#ccc", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => setSilOnay(null)}>İptal</button>
+                              </span>
+                            ) : (
+                              <button style={{ fontSize: 14, background: "transparent", border: "none", cursor: "pointer" }} onClick={() => setSilOnay(k.id)}>🗑️</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  // MOBİL KART
+                  filtreliKategori.map(k => (
+                    <div key={k.id} style={styles.recordCard}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{k.isim_soyisim}</div>
+                          <div style={{ fontSize: 11, color: "#888" }}>{k.tutanak_tarih} {k.tutanak_no && `• ${k.tutanak_no}`}</div>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: "#2e7d32" }}>{k.yeni_uye}</div>
+                          <div style={{ fontSize: 9, color: "#888" }}>Yeni</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, fontSize: 12, color: "#666", flexWrap: "wrap" }}>
+                        <span>Teslim: <strong>{k.teslim_edilen}</strong></span>
+                        {k.mukerrer > 0 && <span style={{ color: "#c0392b" }}>Mük: <strong>{k.mukerrer}</strong></span>}
+                        {k.tc_seri_no_hatali > 0 && (
+                          <span style={{ color: "#FF8F00", background: "#FFF8E1", padding: "1px 6px", borderRadius: 3 }}>
+                            Hatalı: <strong>{k.tc_seri_no_hatali}</strong>
+                          </span>
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <div style={{ marginTop: 10, textAlign: "right" }}>
+                          {silOnay === k.id ? (
+                            <span>
+                              <button style={{ fontSize: 12, background: "#c0392b", color: "#fff", border: "none", borderRadius: 4, padding: "4px 10px", marginRight: 6, cursor: "pointer" }} onClick={() => sil(k.id)}>Sil</button>
+                              <button style={{ fontSize: 12, background: "#ccc", border: "none", borderRadius: 4, padding: "4px 10px", cursor: "pointer" }} onClick={() => setSilOnay(null)}>İptal</button>
+                            </span>
+                          ) : (
+                            <button style={{ fontSize: 14, background: "transparent", border: "none", cursor: "pointer" }} onClick={() => setSilOnay(k.id)}>🗑️</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {screen === "rapor" && isAdmin && <div style={S.card}><div style={S.cardTitle}>📈 Rapor</div><div style={S.summaryRow}><div style={S.summaryCard}><div style={S.summaryVal}>{kayitlar.reduce((s, k) => s + (k.teslim_edilen || 0), 0)}</div><div style={S.summaryLbl}>Teslim</div></div><div style={S.summaryCard}><div style={{ ...S.summaryVal, color: "#2e7d32" }}>{kayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0)}</div><div style={S.summaryLbl}>Yeni Üye</div></div><div style={S.summaryCard}><div style={{ ...S.summaryVal, color: "#c0392b" }}>{kayitlar.reduce((s, k) => s + (k.mukerrer || 0), 0)}</div><div style={S.summaryLbl}>Mükerrer</div></div><div style={S.summaryCard}><div style={{ ...S.summaryVal, color: "#FF8F00" }}>{kayitlar.reduce((s, k) => s + (k.tc_seri_no_hatali || 0), 0)}</div><div style={S.summaryLbl}>Hatalı</div></div></div><div style={{ marginTop: 16 }}><div style={{ fontWeight: 700, marginBottom: 12 }}>Kategori Özeti</div>{Object.entries(KAT_LABELS).map(([key, val]) => { const katYeni = kayitlar.filter(k => kisilerByKategori(key).some(p => p.isim_soyisim === k.isim_soyisim)).reduce((s, k) => s + (k.yeni_uye || 0), 0); return <div key={key} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #eee", fontSize: 13 }}><span>{val.icon} {val.short}</span><strong style={{ color: "#2e7d32" }}>{katYeni} yeni</strong></div>; })}</div></div>}
+        {/* RAPOR EKRANI */}
+        {screen === "rapor" && isAdmin && (
+          <div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>📈 Genel Özet</div>
+              <div style={styles.summaryRow}>
+                <div style={styles.summaryCard}>
+                  <div style={styles.summaryVal}>{kayitlar.reduce((s, k) => s + (k.teslim_edilen || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>Toplam Teslim</div>
+                </div>
+                <div style={styles.summaryCard}>
+                  <div style={{ ...styles.summaryVal, color: "#2e7d32" }}>{kayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>Yeni Üye</div>
+                </div>
+                <div style={styles.summaryCard}>
+                  <div style={{ ...styles.summaryVal, color: "#c0392b" }}>{kayitlar.reduce((s, k) => s + (k.mukerrer || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>Mükerrer</div>
+                </div>
+                <div style={styles.summaryCard}>
+                  <div style={{ ...styles.summaryVal, color: "#FF8F00" }}>{kayitlar.reduce((s, k) => s + (k.tc_seri_no_hatali || 0), 0)}</div>
+                  <div style={styles.summaryLbl}>TC Hatalı</div>
+                </div>
+              </div>
+            </div>
 
-        {screen === "kullanicilar" && isAdmin && <div><div style={S.card}><div style={S.cardTitle}>➕ Yeni Kullanıcı</div><div style={S.grid2}><div><label style={S.label}>Kullanıcı Adı</label><input style={S.input} value={yeniKullanici.username} onChange={e => setYeniKullanici(p => ({ ...p, username: e.target.value }))} /></div><div><label style={S.label}>Şifre</label><input style={S.input} value={yeniKullanici.password} onChange={e => setYeniKullanici(p => ({ ...p, password: e.target.value }))} /></div></div><div style={{ marginBottom: 12 }}><label style={S.label}>Görünen İsim</label><input style={S.input} value={yeniKullanici.display_name} onChange={e => setYeniKullanici(p => ({ ...p, display_name: e.target.value }))} /></div><div style={S.grid2}><div><label style={S.label}>Rol</label><select style={S.input} value={yeniKullanici.rol} onChange={e => setYeniKullanici(p => ({ ...p, rol: e.target.value }))}><option value="uye">Üye</option><option value="admin">Admin</option></select></div>{yeniKullanici.rol === "uye" && <div><label style={S.label}>Eşleşen İsim</label><select style={S.input} value={yeniKullanici.isim_soyisim} onChange={e => setYeniKullanici(p => ({ ...p, isim_soyisim: e.target.value }))}><option value="">Seçiniz</option>{kisiler.map(k => <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>)}</select></div>}</div>{kullaniciMesaj && <div style={{ ...S.msg, marginTop: 12, background: kullaniciMesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea", color: kullaniciMesaj.startsWith("✅") ? "#2e7d32" : "#c0392b" }}>{kullaniciMesaj}</div>}<button style={{ ...S.btn, marginTop: 12 }} onClick={kullaniciEkle}>👤 Ekle</button></div><div style={S.card}><div style={S.cardTitle}>📋 Kullanıcılar ({kullanicilar.length})</div>{kullanicilar.map(k => <div key={k.id} style={S.userRow}><div><div style={{ fontWeight: 600, fontSize: 13 }}>{k.display_name}</div><div style={{ fontSize: 11, color: "#888" }}>@{k.username}</div></div><div style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ ...S.badge, background: k.rol === "admin" ? "#1A2942" : "#F4A620", color: k.rol === "admin" ? "#fff" : "#1A2942" }}>{k.rol === "admin" ? "Admin" : "Üye"}</span>{k.username !== "admin" && <button style={{ fontSize: 14, background: "transparent", border: "none" }} onClick={() => kullaniciSil(k.id)}>🗑️</button>}</div></div>)}</div></div>}
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>📊 Kategori Bazlı Özet</div>
+              {Object.entries(KAT_LABELS).map(([key, val]) => {
+                const katKisiler = kisilerByKategori(key).map(k => k.isim_soyisim);
+                const katKayitlar = kayitlar.filter(k => katKisiler.includes(k.isim_soyisim));
+                const katYeni = katKayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0);
+                const katTeslim = katKayitlar.reduce((s, k) => s + (k.teslim_edilen || 0), 0);
+                return (
+                  <div key={key} style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: isMobile ? "12px 0" : "14px 0",
+                    borderBottom: "1px solid #eee",
+                    fontSize: isMobile ? 13 : 14,
+                  }}>
+                    <span>{val.icon} {isMobile ? val.short : val.label}</span>
+                    <div style={{ display: "flex", gap: isMobile ? 16 : 32 }}>
+                      <span>Teslim: <strong>{katTeslim}</strong></span>
+                      <span style={{ color: "#2e7d32" }}>Yeni: <strong>{katYeni}</strong></span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* KULLANICILAR EKRANI */}
+        {screen === "kullanicilar" && isAdmin && (
+          <div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>➕ Yeni Kullanıcı Ekle</div>
+
+              <div style={styles.grid2}>
+                <div>
+                  <label style={styles.label}>Kullanıcı Adı</label>
+                  <input
+                    style={styles.input}
+                    placeholder="kullanici"
+                    value={yeniKullanici.username}
+                    onChange={e => setYeniKullanici(p => ({ ...p, username: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={styles.label}>Şifre</label>
+                  <input
+                    style={styles.input}
+                    placeholder="sifre123"
+                    value={yeniKullanici.password}
+                    onChange={e => setYeniKullanici(p => ({ ...p, password: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={styles.label}>Görünen İsim</label>
+                <input
+                  style={styles.input}
+                  placeholder="Adı Soyadı"
+                  value={yeniKullanici.display_name}
+                  onChange={e => setYeniKullanici(p => ({ ...p, display_name: e.target.value }))}
+                />
+              </div>
+
+              <div style={styles.grid2}>
+                <div>
+                  <label style={styles.label}>Rol</label>
+                  <select
+                    style={styles.input}
+                    value={yeniKullanici.rol}
+                    onChange={e => setYeniKullanici(p => ({ ...p, rol: e.target.value }))}
+                  >
+                    <option value="uye">Üye</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                {yeniKullanici.rol === "uye" && (
+                  <div>
+                    <label style={styles.label}>Eşleşen İsim</label>
+                    <select
+                      style={styles.input}
+                      value={yeniKullanici.isim_soyisim}
+                      onChange={e => setYeniKullanici(p => ({ ...p, isim_soyisim: e.target.value }))}
+                    >
+                      <option value="">Seçiniz</option>
+                      {kisiler.map(k => (
+                        <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {kullaniciMesaj && (
+                <div style={{
+                  ...styles.msg,
+                  marginTop: 12,
+                  background: kullaniciMesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea",
+                  color: kullaniciMesaj.startsWith("✅") ? "#2e7d32" : "#c0392b",
+                }}>
+                  {kullaniciMesaj}
+                </div>
+              )}
+
+              <button style={{ ...styles.btn, width: "100%", marginTop: 12 }} onClick={kullaniciEkle}>
+                👤 Kullanıcı Ekle
+              </button>
+            </div>
+
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>📋 Mevcut Kullanıcılar ({kullanicilar.length})</div>
+              {kullanicilar.map(k => (
+                <div key={k.id} style={styles.userRow}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{k.display_name}</div>
+                    <div style={{ fontSize: 12, color: "#888" }}>@{k.username}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{
+                      ...styles.badge,
+                      background: k.rol === "admin" ? "#1A2942" : "#F4A620",
+                      color: k.rol === "admin" ? "#fff" : "#1A2942",
+                    }}>
+                      {k.rol === "admin" ? "Admin" : "Üye"}
+                    </span>
+                    {k.username !== "admin" && (
+                      <button
+                        style={{ fontSize: 16, background: "transparent", border: "none", cursor: "pointer" }}
+                        onClick={() => kullaniciSil(k.id)}
+                      >
+                        🗑️
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
