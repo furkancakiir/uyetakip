@@ -59,6 +59,9 @@ export default function App() {
   const [gorunumModu, setGorunumModu] = useState("kisiler");
   const [seciliKisi, setSeciliKisi] = useState(null);
   const [duzenleKayit, setDuzenleKayit] = useState(null); // Düzenleme için
+  const [kisiModal, setKisiModal] = useState(false); // Kişi ekleme modal
+  const [yeniKisi, setYeniKisi] = useState({ isim_soyisim: "", kategori: "ilce_yonetimi", mahalle: "", gorev: "" });
+  const [kisiMesaj, setKisiMesaj] = useState("");
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -156,6 +159,36 @@ export default function App() {
   async function kullaniciSil(id) {
     await supabase.from("kullanicilar").delete().eq("id", id);
     kullanicilariYukle();
+  }
+
+  // KİŞİ EKLEME
+  async function kisiEkle() {
+    if (!yeniKisi.isim_soyisim.trim()) {
+      setKisiMesaj("❌ İsim soyisim zorunlu");
+      return;
+    }
+    const isim = yeniKisi.isim_soyisim.trim().toUpperCase();
+    const { error } = await supabase.from("kisiler").insert([{
+      isim_soyisim: isim,
+      kategori: yeniKisi.kategori,
+      mahalle: yeniKisi.mahalle.trim() || null,
+      gorev: yeniKisi.gorev.trim() || null,
+    }]);
+    if (error) {
+      setKisiMesaj("❌ " + (error.message.includes("duplicate") ? "Bu kişi zaten var" : error.message));
+      return;
+    }
+    setKisiMesaj("✅ Kişi eklendi!");
+    setYeniKisi({ isim_soyisim: "", kategori: yeniKisi.kategori, mahalle: "", gorev: "" });
+    kisileriYukle();
+    setTimeout(() => setKisiMesaj(""), 3000);
+  }
+
+  // KİŞİ SİLME
+  async function kisiSil(id) {
+    if (!confirm("Bu kişiyi silmek istediğinize emin misiniz?")) return;
+    await supabase.from("kisiler").update({ is_active: false }).eq("id", id);
+    kisileriYukle();
   }
 
   async function kaydet() {
@@ -480,9 +513,10 @@ export default function App() {
             )}
 
             {isAdmin && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
                 <button onClick={() => setGorunumModu("kisiler")} style={{ ...styles.tab, background: gorunumModu === "kisiler" ? "#2e7d32" : "#e0e0e0", color: gorunumModu === "kisiler" ? "#fff" : "#555" }}>👥 Kişiler</button>
                 <button onClick={() => setGorunumModu("kayitlar")} style={{ ...styles.tab, background: gorunumModu === "kayitlar" ? "#2e7d32" : "#e0e0e0", color: gorunumModu === "kayitlar" ? "#fff" : "#555" }}>📋 Kayıtlar</button>
+                <button onClick={() => { setKisiModal(true); setYeniKisi(p => ({ ...p, kategori: aktifKategori })); }} style={{ ...styles.tab, background: "#F4A620", color: "#1A2942", marginLeft: "auto" }}>➕ Kişi Ekle</button>
               </div>
             )}
 
@@ -511,10 +545,13 @@ export default function App() {
                         <th style={{ ...styles.th, textAlign: "center", color: "#2e7d32" }}>Yeni Üye</th>
                         <th style={{ ...styles.th, textAlign: "center", color: "#c0392b" }}>Mükerrer</th>
                         <th style={{ ...styles.th, textAlign: "center", color: "#FF8F00" }}>TC Hatalı</th>
+                        <th style={styles.th}>İşlem</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {kisiOzeti.map(k => (
+                      {kisiOzeti.map(k => {
+                        const kisiObj = kisiler.find(ki => ki.isim_soyisim === k.isim);
+                        return (
                         <tr key={k.isim} style={{ background: k.kayit === 0 ? "#FFF8E1" : "#fff" }}>
                           <td style={styles.td}><strong>{k.isim}</strong>{k.kayit === 0 && <span style={{ fontSize: 11, color: "#FF8F00", marginLeft: 8 }}>⚠️</span>}</td>
                           <td style={styles.td}><span style={styles.mahalleBadge}>{k.mahalle || "-"}</span></td>
@@ -523,8 +560,11 @@ export default function App() {
                           <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</td>
                           <td style={{ ...styles.td, textAlign: "center", color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</td>
                           <td style={{ ...styles.td, textAlign: "center", color: k.hatali > 0 ? "#FF8F00" : "inherit" }}>{k.hatali}</td>
+                          <td style={styles.td}>
+                            {kisiObj && <button style={{ fontSize: 14, background: "transparent", border: "none", cursor: "pointer" }} onClick={() => kisiSil(kisiObj.id)}>🗑️</button>}
+                          </td>
                         </tr>
-                      ))}
+                      );})}
                     </tbody>
                     <tfoot>
                       <tr style={{ background: "#1A2942", color: "#fff" }}>
@@ -534,13 +574,16 @@ export default function App() {
                         <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#F4A620" }}>{kisiOzeti.reduce((s, k) => s + k.yeni, 0)}</td>
                         <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.muk, 0)}</td>
                         <td style={{ ...styles.td, textAlign: "center" }}>{kisiOzeti.reduce((s, k) => s + k.hatali, 0)}</td>
+                        <td style={styles.td}></td>
                       </tr>
                     </tfoot>
                   </table>
                 ) : (
                   <div>
                     {kisiOzeti.length === 0 && <div style={{ textAlign: "center", padding: 32, color: "#999" }}>Kişi bulunamadı</div>}
-                    {kisiOzeti.map(k => (
+                    {kisiOzeti.map(k => {
+                      const kisiObj = kisiler.find(ki => ki.isim_soyisim === k.isim);
+                      return (
                       <div key={k.isim} style={{ ...styles.personCard, background: k.kayit === 0 ? "#FFF8E1" : "#fff" }} onClick={() => setSeciliKisi(seciliKisi === k.isim ? null : k.isim)}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div>
@@ -554,17 +597,20 @@ export default function App() {
                           </div>
                         </div>
                         {seciliKisi === k.isim && (
-                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
-                            <div>Kayıt: <strong>{k.kayit}</strong></div>
-                            <div>Teslim: <strong>{k.teslim}</strong></div>
-                            <div>Yapılabilir: <strong>{k.yapilabilir}</strong></div>
-                            <div>Silinmiş: <strong>{k.silinmis}</strong></div>
-                            <div>Mükerrer: <strong style={{ color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</strong></div>
-                            <div>Hatalı: <strong style={{ color: k.hatali > 0 ? "#FF8F00" : "inherit" }}>{k.hatali}</strong></div>
+                          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, marginBottom: 10 }}>
+                              <div>Kayıt: <strong>{k.kayit}</strong></div>
+                              <div>Teslim: <strong>{k.teslim}</strong></div>
+                              <div>Yapılabilir: <strong>{k.yapilabilir}</strong></div>
+                              <div>Silinmiş: <strong>{k.silinmis}</strong></div>
+                              <div>Mükerrer: <strong style={{ color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</strong></div>
+                              <div>Hatalı: <strong style={{ color: k.hatali > 0 ? "#FF8F00" : "inherit" }}>{k.hatali}</strong></div>
+                            </div>
+                            {kisiObj && <button style={{ fontSize: 12, background: "#fdecea", color: "#c0392b", border: "none", borderRadius: 4, padding: "6px 12px", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); kisiSil(kisiObj.id); }}>🗑️ Kişiyi Sil</button>}
                           </div>
                         )}
                       </div>
-                    ))}
+                    );})}
                     {kisiOzeti.length > 0 && (
                       <div style={styles.totalBar}>
                         <div style={{ fontWeight: 700, fontSize: 13 }}>TOPLAM ({kisiOzeti.length} kişi)</div>
@@ -780,6 +826,49 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* KİŞİ EKLEME MODAL */}
+      {kisiModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: "100%", maxWidth: 400, maxHeight: "90vh", overflow: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#1A2942" }}>➕ Yeni Kişi Ekle</div>
+              <button style={{ fontSize: 20, background: "transparent", border: "none", cursor: "pointer" }} onClick={() => { setKisiModal(false); setKisiMesaj(""); }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={styles.label}>İsim Soyisim *</label>
+              <input style={styles.input} placeholder="ADI SOYADI" value={yeniKisi.isim_soyisim} onChange={e => setYeniKisi(p => ({ ...p, isim_soyisim: e.target.value.toUpperCase() }))} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={styles.label}>Kategori *</label>
+              <select style={styles.input} value={yeniKisi.kategori} onChange={e => setYeniKisi(p => ({ ...p, kategori: e.target.value }))}>
+                {Object.entries(KAT_LABELS).map(([key, val]) => (
+                  <option key={key} value={key}>{val.icon} {val.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={styles.label}>Mahalle</label>
+              <input style={styles.input} placeholder="BAŞAK 1, GÜVERCİNTEPE vb." value={yeniKisi.mahalle} onChange={e => setYeniKisi(p => ({ ...p, mahalle: e.target.value.toUpperCase() }))} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={styles.label}>Görev</label>
+              <input style={styles.input} placeholder="Mahalle Başkanı, YK Üyesi vb." value={yeniKisi.gorev} onChange={e => setYeniKisi(p => ({ ...p, gorev: e.target.value }))} />
+            </div>
+
+            {kisiMesaj && <div style={{ ...styles.msg, background: kisiMesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea", color: kisiMesaj.startsWith("✅") ? "#2e7d32" : "#c0392b" }}>{kisiMesaj}</div>}
+
+            <div style={{ display: "flex", gap: 12 }}>
+              <button style={{ ...styles.btn, flex: 1, background: "#2e7d32" }} onClick={kisiEkle}>✅ Ekle</button>
+              <button style={{ ...styles.btn, background: "#e0e0e0", color: "#555" }} onClick={() => { setKisiModal(false); setKisiMesaj(""); }}>İptal</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
