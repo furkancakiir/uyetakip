@@ -974,7 +974,6 @@ export default function App() {
                           <span>%{mahalleRaporu.reduce((s, m) => s + m.hedef, 0) > 0 ? Math.round((mahalleRaporu.reduce((s, m) => s + m.yeni, 0) / mahalleRaporu.reduce((s, m) => s + m.hedef, 0)) * 100) : 0}</span>
                         </div>
                       </div>
-                      </div>
                     </div>
                   )}
                 </>
