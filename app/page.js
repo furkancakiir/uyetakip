@@ -208,14 +208,48 @@ export default function App() {
   }
 
   // Telegram bildirim fonksiyonu
-  async function telegramBildirimGonder(telegramId, isim, teslim, yeni, mukerrer) {
+  async function telegramBildirimGonder(telegramId, isim, kayit) {
     const TELEGRAM_API = "https://api.telegram.org/bot8685265365:AAFVhfEyu93a5THUFGh83YBEpbNhFBeDMa4/sendMessage";
-    const mesaj = `📋 Yeni Tutanak Kaydı\n\n👤 ${isim}\n📦 Teslim: ${teslim || 0}\n✅ Yeni Üye: ${yeni || 0}${mukerrer > 0 ? `\n⚠️ Mükerrer: ${mukerrer}` : ""}\n\n📅 ${new Date().toLocaleDateString("tr-TR")}`;
+    
+    const tarih = new Date().toLocaleDateString("tr-TR");
+    const saat = new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+    
+    let mesaj = `📋 *YENİ TUTANAK KAYDI*\n`;
+    mesaj += `━━━━━━━━━━━━━━━━━━\n\n`;
+    mesaj += `👤 *${isim}*\n`;
+    mesaj += `📅 ${tarih} - ${saat}\n\n`;
+    
+    mesaj += `📊 *ÖZET*\n`;
+    mesaj += `├ 📦 Teslim Edilen: *${kayit.teslim_edilen || 0}*\n`;
+    mesaj += `├ ✅ Yeni Üye: *${kayit.yeni_uye || 0}*\n`;
+    mesaj += `├ 🔄 Mükerrer: *${kayit.mukerrer || 0}*\n`;
+    mesaj += `└ ❌ Silinmiş: *${kayit.silinmis_uye || 0}*\n\n`;
+    
+    // Hatalı kayıt varsa uyarı
+    if (kayit.tc_seri_no_hatali > 0) {
+      mesaj += `⚠️ *DİKKAT!*\n`;
+      mesaj += `🔴 *${kayit.tc_seri_no_hatali} adet TC/Seri No hatalı* kaydınız var!\n`;
+      mesaj += `📍 Lütfen en kısa sürede *Bilgi İşlem'den* formlarınızı alınız.\n\n`;
+    }
+    
+    // İmzasız varsa uyarı
+    if (kayit.imzasiz > 0) {
+      mesaj += `✍️ *${kayit.imzasiz} adet imzasız* form tespit edildi.\n\n`;
+    }
+    
+    mesaj += `━━━━━━━━━━━━━━━━━━\n`;
+    mesaj += `🏛️ AK Parti Başakşehir\n`;
+    mesaj += `💻 BİT Komisyonu`;
+    
     try {
       await fetch(TELEGRAM_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: telegramId, text: mesaj }),
+        body: JSON.stringify({ 
+          chat_id: telegramId, 
+          text: mesaj,
+          parse_mode: "Markdown"
+        }),
       });
     } catch (e) { console.log("Telegram bildirim hatası:", e); }
   }
@@ -245,7 +279,7 @@ export default function App() {
       // Telegram bildirimi gönder
       const kisi = kisiler.find(k => k.isim_soyisim === form.isim_soyisim);
       if (kisi?.telegram_id) {
-        telegramBildirimGonder(kisi.telegram_id, form.isim_soyisim, kayit.teslim_edilen, kayit.yeni_uye, kayit.mukerrer);
+        telegramBildirimGonder(kisi.telegram_id, form.isim_soyisim, kayit);
       }
     }
     
