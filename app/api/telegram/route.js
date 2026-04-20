@@ -69,6 +69,25 @@ export async function POST(request) {
       });
 
       if (kisi) {
+        // GÜVENLİK KONTROLÜ: Bu telefona zaten başka bir Telegram ID atanmış mı?
+        if (kisi.telegram_id && kisi.telegram_id !== chatId.toString()) {
+          await sendMessage(chatId,
+            `⚠️ Bu telefon numarası zaten başka bir Telegram hesabına kayıtlı.\n\n` +
+            `Eğer bu sizin numaranızsa, lütfen yöneticinize başvurun.`
+          );
+          return Response.json({ ok: true });
+        }
+        
+        // GÜVENLİK KONTROLÜ: Bu Telegram ID zaten başka bir kişiye kayıtlı mı?
+        const mevcutKayit = kisiler?.find(k => k.telegram_id === chatId.toString() && k.id !== kisi.id);
+        if (mevcutKayit) {
+          await sendMessage(chatId,
+            `⚠️ Bu Telegram hesabı zaten ${mevcutKayit.isim_soyisim} olarak kayıtlı.\n\n` +
+            `Farklı bir numara kaydedemezsiniz.`
+          );
+          return Response.json({ ok: true });
+        }
+        
         // Telegram ID'yi kaydet
         await supabase
           .from("kisiler")
