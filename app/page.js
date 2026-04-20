@@ -760,23 +760,41 @@ export default function App() {
         {screen === "kullanicilar" && isAdmin && (
           <div>
             <div style={styles.card}>
-              <div style={styles.cardTitle}>➕ Yeni Kullanıcı</div>
+              <div style={styles.cardTitle}>➕ Yeni Kullanıcı Ekle</div>
               <div style={styles.grid2}>
-                <div><label style={styles.label}>Kullanıcı Adı</label><input style={styles.input} value={yeniKullanici.username} onChange={e => setYeniKullanici(p => ({ ...p, username: e.target.value }))} /></div>
-                <div><label style={styles.label}>Şifre</label><input style={styles.input} value={yeniKullanici.password} onChange={e => setYeniKullanici(p => ({ ...p, password: e.target.value }))} /></div>
+                <div><label style={styles.label}>Kullanıcı Adı</label><input style={styles.input} placeholder="kullanici" value={yeniKullanici.username} onChange={e => setYeniKullanici(p => ({ ...p, username: e.target.value }))} /></div>
+                <div><label style={styles.label}>Şifre</label><input style={styles.input} placeholder="sifre123" value={yeniKullanici.password} onChange={e => setYeniKullanici(p => ({ ...p, password: e.target.value }))} /></div>
               </div>
-              <div style={{ marginBottom: 16 }}><label style={styles.label}>Görünen İsim</label><input style={styles.input} value={yeniKullanici.display_name} onChange={e => setYeniKullanici(p => ({ ...p, display_name: e.target.value }))} /></div>
-              {kullaniciMesaj && <div style={{ ...styles.msg, background: kullaniciMesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea", color: kullaniciMesaj.startsWith("✅") ? "#2e7d32" : "#c0392b" }}>{kullaniciMesaj}</div>}
-              <button style={{ ...styles.btn, width: "100%" }} onClick={kullaniciEkle}>Kullanıcı Ekle</button>
+              <div style={{ marginBottom: 16 }}><label style={styles.label}>Görünen İsim</label><input style={styles.input} placeholder="Adı Soyadı" value={yeniKullanici.display_name} onChange={e => setYeniKullanici(p => ({ ...p, display_name: e.target.value }))} /></div>
+              <div style={styles.grid2}>
+                <div>
+                  <label style={styles.label}>Rol</label>
+                  <select style={styles.input} value={yeniKullanici.rol} onChange={e => setYeniKullanici(p => ({ ...p, rol: e.target.value }))}>
+                    <option value="uye">Üye</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                {yeniKullanici.rol === "uye" && (
+                  <div>
+                    <label style={styles.label}>Eşleşen İsim</label>
+                    <select style={styles.input} value={yeniKullanici.isim_soyisim} onChange={e => setYeniKullanici(p => ({ ...p, isim_soyisim: e.target.value }))}>
+                      <option value="">Seçiniz</option>
+                      {kisiler.map(k => <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              {kullaniciMesaj && <div style={{ ...styles.msg, marginTop: 12, background: kullaniciMesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea", color: kullaniciMesaj.startsWith("✅") ? "#2e7d32" : "#c0392b" }}>{kullaniciMesaj}</div>}
+              <button style={{ ...styles.btn, width: "100%", marginTop: 12 }} onClick={kullaniciEkle}>👤 Kullanıcı Ekle</button>
             </div>
             <div style={styles.card}>
-              <div style={styles.cardTitle}>👥 Kullanıcılar ({kullanicilar.length})</div>
+              <div style={styles.cardTitle}>📋 Mevcut Kullanıcılar ({kullanicilar.length})</div>
               {kullanicilar.map(k => (
                 <div key={k.id} style={styles.userRow}>
-                  <div><div style={{ fontWeight: 600 }}>{k.display_name}</div><div style={{ fontSize: 12, color: "#888" }}>@{k.username}</div></div>
+                  <div><div style={{ fontWeight: 600, fontSize: 14 }}>{k.display_name}</div><div style={{ fontSize: 12, color: "#888" }}>@{k.username}</div></div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ ...styles.badge, background: k.rol === "admin" ? "#1A2942" : "#F4A620", color: k.rol === "admin" ? "#fff" : "#1A2942" }}>{k.rol}</span>
-                    {k.username !== "admin" && <button style={{ background: "transparent", border: "none", cursor: "pointer" }} onClick={() => kullaniciSil(k.id)}>🗑️</button>}
+                    <span style={{ ...styles.badge, background: k.rol === "admin" ? "#1A2942" : "#F4A620", color: k.rol === "admin" ? "#fff" : "#1A2942" }}>{k.rol === "admin" ? "Admin" : "Üye"}</span>
+                    {k.username !== "admin" && <button style={{ fontSize: 16, background: "transparent", border: "none", cursor: "pointer" }} onClick={() => kullaniciSil(k.id)}>🗑️</button>}
                   </div>
                 </div>
               ))}
