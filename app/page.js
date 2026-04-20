@@ -64,6 +64,7 @@ export default function App() {
   const [kisiMesaj, setKisiMesaj] = useState("");
   const [hedefDuzenle, setHedefDuzenle] = useState(null);
   const [seciliMahalle, setSeciliMahalle] = useState(null);
+  const [raporFiltre, setRaporFiltre] = useState("tumu");
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -330,7 +331,34 @@ export default function App() {
 
   const isAdmin = kullanici?.rol === "admin";
   const aktifKisiIsimleri = kisiler.map(k => k.isim_soyisim);
-  const aktifKayitlar = kayitlar.filter(k => aktifKisiIsimleri.includes(k.isim_soyisim));
+  
+  // Tarih filtreleme
+  function tarihFiltrele(kayitlar) {
+    if (raporFiltre === "tumu") return kayitlar;
+    
+    const bugun = new Date();
+    bugun.setHours(0, 0, 0, 0);
+    
+    return kayitlar.filter(k => {
+      const kayitTarih = new Date(k.tutanak_tarih);
+      kayitTarih.setHours(0, 0, 0, 0);
+      
+      if (raporFiltre === "bugun") {
+        return kayitTarih.getTime() === bugun.getTime();
+      }
+      if (raporFiltre === "hafta") {
+        const haftaBasi = new Date(bugun);
+        haftaBasi.setDate(bugun.getDate() - bugun.getDay() + 1); // Pazartesi
+        return kayitTarih >= haftaBasi;
+      }
+      if (raporFiltre === "ay") {
+        return kayitTarih.getMonth() === bugun.getMonth() && kayitTarih.getFullYear() === bugun.getFullYear();
+      }
+      return true;
+    });
+  }
+  
+  const aktifKayitlar = tarihFiltrele(kayitlar.filter(k => aktifKisiIsimleri.includes(k.isim_soyisim)));
 
   const filtreliKategori = isAdmin
     ? aktifKayitlar.filter(k => kisilerByKategori(aktifKategori).some(p => p.isim_soyisim === k.isim_soyisim))
@@ -731,6 +759,21 @@ export default function App() {
           <div>
             <div style={styles.card}>
               <div style={styles.cardTitle}>📈 Genel Özet</div>
+              
+              {/* Tarih Filtreleri */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+                {[
+                  { key: "bugun", label: "Bugün" },
+                  { key: "hafta", label: "Bu Hafta" },
+                  { key: "ay", label: "Bu Ay" },
+                  { key: "tumu", label: "Tümü" },
+                ].map(f => (
+                  <button key={f.key} onClick={() => setRaporFiltre(f.key)} style={{ ...styles.tab, background: raporFiltre === f.key ? "#1A2942" : "#e0e0e0", color: raporFiltre === f.key ? "#fff" : "#555" }}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              
               <div style={styles.summaryRow}>
                 <div style={styles.summaryCard}><div style={styles.summaryVal}>{raporToplam.teslim}</div><div style={styles.summaryLbl}>Toplam Teslim</div></div>
                 <div style={styles.summaryCard}><div style={{ ...styles.summaryVal, color: "#2e7d32" }}>{raporToplam.yeni}</div><div style={styles.summaryLbl}>Yeni Üye</div></div>
@@ -752,6 +795,39 @@ export default function App() {
                   </div>
                 );
               })}
+            </div>
+            
+            {/* Mahalle Bazlı Özet */}
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>🏘️ Mahalle Bazlı Özet</div>
+              {mahalleRaporu.map(m => {
+                const ilerlemeYuzde = m.hedef > 0 ? Math.min(100, Math.round((m.yeni / m.hedef) * 100)) : 0;
+                return (
+                  <div key={m.mahalle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #eee" }}>
+                    <div>
+                      <span style={{ fontWeight: 600 }}>{m.mahalle}</span>
+                      <span style={{ fontSize: 11, color: "#888", marginLeft: 8 }}>({m.kisiler.length} kişi)</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      {m.hedef > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 50, height: 6, background: "#e0e0e0", borderRadius: 3 }}>
+                            <div style={{ width: `${ilerlemeYuzde}%`, height: "100%", background: ilerlemeYuzde >= 100 ? "#2e7d32" : "#F4A620", borderRadius: 3 }}></div>
+                          </div>
+                          <span style={{ fontSize: 11 }}>%{ilerlemeYuzde}</span>
+                        </div>
+                      )}
+                      <span style={{ color: "#2e7d32", fontWeight: 700 }}>{m.yeni}{m.hedef > 0 && <span style={{ fontWeight: 400, color: "#888" }}>/{m.hedef}</span>}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ ...styles.totalBar, marginTop: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 700 }}>TOPLAM</span>
+                  <span style={{ color: "#F4A620", fontWeight: 700 }}>{mahalleRaporu.reduce((s, m) => s + m.yeni, 0)} / {mahalleRaporu.reduce((s, m) => s + m.hedef, 0)}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
