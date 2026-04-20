@@ -779,7 +779,11 @@ export default function App() {
                     <label style={styles.label}>Eşleşen İsim</label>
                     <select style={styles.input} value={yeniKullanici.isim_soyisim} onChange={e => setYeniKullanici(p => ({ ...p, isim_soyisim: e.target.value }))}>
                       <option value="">Seçiniz</option>
-                      {kisiler.map(k => <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>)}
+                      {Object.entries(KAT_LABELS).map(([key, val]) => (
+                        <optgroup key={key} label={`${val.icon} ${val.label}`}>
+                          {kisilerByKategori(key).map(k => <option key={k.id} value={k.isim_soyisim}>{k.isim_soyisim}</option>)}
+                        </optgroup>
+                      ))}
                     </select>
                   </div>
                 )}
