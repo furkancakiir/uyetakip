@@ -40,78 +40,73 @@ export async function POST(request) {
     const text = message.text?.trim();
     const firstName = message.from?.first_name || "";
 
+    // Veritabanında bu Telegram ID ile kayıtlı kişi var mı?
+    const { data: kisiler } = await supabase
+      .from("kisiler")
+      .select("*")
+      .eq("telegram_id", chatId.toString())
+      .eq("is_active", true);
+
+    const kayitliKisi = kisiler && kisiler.length > 0 ? kisiler[0] : null;
+
     // /start komutu
     if (text === "/start") {
-      await sendMessage(chatId, 
-        `🎉 Merhaba ${firstName}!\n\n` +
-        `AK Parti Başakşehir BİT Komisyonu\n` +
-        `Üye Takip Sistemi'ne hoş geldiniz.\n\n` +
-        `📱 Lütfen sistemde kayıtlı telefon numaranızı girin:\n` +
-        `Örnek: 5321234567`
-      );
+      if (kayitliKisi) {
+        await sendMessage(chatId, 
+          `✅ Merhaba ${kayitliKisi.isim_soyisim}!\n\n` +
+          `Telegram hesabınız sisteme kayıtlı.\n` +
+          `🏘️ Mahalle: ${kayitliKisi.mahalle || "—"}\n\n` +
+          `Tutanak kayıtlarınız girildiğinde bildirim alacaksınız.`
+        );
+      } else {
+        await sendMessage(chatId, 
+          `👋 Merhaba ${firstName}!\n\n` +
+          `AK Parti Başakşehir\n` +
+          `Bilgi ve İletişim Teknolojileri Komisyonu\n` +
+          `Üye Takip Sistemi\n\n` +
+          `⚠️ Telegram hesabınız sistemde kayıtlı değil.\n\n` +
+          `Kayıt için lütfen Bilgi ve İletişim Teknolojileri Komisyonu ile iletişime geçin.`
+        );
+      }
       return Response.json({ ok: true });
     }
 
-    // Telefon numarası kontrolü
-    const cleanPhone = normalizePhone(text);
-    
-    if (cleanPhone && cleanPhone.length === 10 && cleanPhone.startsWith("5")) {
-      // Veritabanında tüm kişileri al
-      const { data: kisiler } = await supabase
-        .from("kisiler")
-        .select("*")
-        .eq("is_active", true);
+    // /durum komutu
+    if (text === "/durum") {
+      if (kayitliKisi) {
+        // Son kayıtları getir
+        const { data: sonKayitlar } = await supabase
+          .from("tutanak_kayitlari")
+          .select("*")
+          .eq("isim_soyisim", kayitliKisi.isim_soyisim)
+          .order("tutanak_tarih", { ascending: false })
+          .limit(3);
 
-      // Telefon eşleştir
-      const kisi = kisiler?.find(k => {
-        const dbPhone = normalizePhone(k.telefon);
-        return dbPhone === cleanPhone;
-      });
+        let mesaj = `📊 *DURUM*\n\n`;
+        mesaj += `👤 ${kayitliKisi.isim_soyisim}\n`;
+        mesaj += `🏘️ ${kayitliKisi.mahalle || "—"}\n`;
+        mesaj += `🎯 Hedef: ${kayitliKisi.hedef || 0}\n\n`;
 
-      if (kisi) {
-        // GÜVENLİK KONTROLÜ: Bu telefona zaten başka bir Telegram ID atanmış mı?
-        if (kisi.telegram_id && kisi.telegram_id !== chatId.toString()) {
-          await sendMessage(chatId,
-            `⚠️ Bu telefon numarası zaten başka bir Telegram hesabına kayıtlı.\n\n` +
-            `Eğer bu sizin numaranızsa, lütfen yöneticinize başvurun.`
-          );
-          return Response.json({ ok: true });
+        if (sonKayitlar && sonKayitlar.length > 0) {
+          const toplamYeni = sonKayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0);
+          mesaj += `📋 Son ${sonKayitlar.length} kayıt:\n`;
+          mesaj += `✅ Toplam Yeni Üye: ${toplamYeni}\n`;
+        } else {
+          mesaj += `📋 Henüz kayıt yok.`;
         }
-        
-        // GÜVENLİK KONTROLÜ: Bu Telegram ID zaten başka bir kişiye kayıtlı mı?
-        const mevcutKayit = kisiler?.find(k => k.telegram_id === chatId.toString() && k.id !== kisi.id);
-        if (mevcutKayit) {
-          await sendMessage(chatId,
-            `⚠️ Bu Telegram hesabı zaten ${mevcutKayit.isim_soyisim} olarak kayıtlı.\n\n` +
-            `Farklı bir numara kaydedemezsiniz.`
-          );
-          return Response.json({ ok: true });
-        }
-        
-        // Telegram ID'yi kaydet
-        await supabase
-          .from("kisiler")
-          .update({ telegram_id: chatId.toString() })
-          .eq("id", kisi.id);
 
-        await sendMessage(chatId,
-          `✅ Kayıt Başarılı!\n\n` +
-          `👤 ${kisi.isim_soyisim}\n` +
-          `🏘️ Mahalle: ${kisi.mahalle || "—"}\n\n` +
-          `Artık size ait tutanak kayıtlarında bildirim alacaksınız.`
-        );
+        await sendMessage(chatId, mesaj);
       } else {
-        await sendMessage(chatId,
-          `❌ Bu telefon numarası sistemde bulunamadı.\n\n` +
-          `Lütfen sistemde kayıtlı telefon numaranızı girin veya yöneticinize başvurun.`
-        );
+        await sendMessage(chatId, `⚠️ Sistemde kayıtlı değilsiniz.`);
       }
       return Response.json({ ok: true });
     }
 
     // Diğer mesajlar
     await sendMessage(chatId,
-      `📱 Lütfen geçerli bir telefon numarası girin.\nÖrnek: 5321234567`
+      `📌 Kullanılabilir komutlar:\n\n` +
+      `/start - Kayıt durumu\n` +
+      `/durum - Son kayıtlarınız`
     );
 
     return Response.json({ ok: true });

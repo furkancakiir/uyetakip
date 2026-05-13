@@ -263,6 +263,13 @@ export default function App() {
       if (ALANLAR.find(a => a.key === k)) kayit[k] = form[k] === "" ? 0 : parseInt(form[k]) || 0;
       else kayit[k] = form[k] || null;
     });
+    
+    // Toplam Yapılabilir otomatik hesapla
+    kayit.toplam_yapilabilir = (parseInt(form.yeni_uye) || 0) + 
+                               (parseInt(form.silinmis_uye) || 0) + 
+                               (parseInt(form.secmen_olmayan) || 0) + 
+                               (parseInt(form.il_ilce_disi) || 0);
+    
     kayit.olusturan = kullanici?.display_name;
     
     if (duzenleKayit) {
@@ -374,8 +381,15 @@ export default function App() {
       hedef: kisi.hedef || 0,
       kayit: kisiKayitlari.length,
       teslim: kisiKayitlari.reduce((s, k) => s + (k.teslim_edilen || 0), 0),
+      toplam_yapilabilir: kisiKayitlari.reduce((s, k) => s + (k.toplam_yapilabilir || 0), 0),
       yeni: kisiKayitlari.reduce((s, k) => s + (k.yeni_uye || 0), 0),
+      silinmis: kisiKayitlari.reduce((s, k) => s + (k.silinmis_uye || 0), 0),
+      secmen_olmayan: kisiKayitlari.reduce((s, k) => s + (k.secmen_olmayan || 0), 0),
+      il_ilce_disi: kisiKayitlari.reduce((s, k) => s + (k.il_ilce_disi || 0), 0),
       muk: kisiKayitlari.reduce((s, k) => s + (k.mukerrer || 0), 0),
+      baska_parti: kisiKayitlari.reduce((s, k) => s + (k.baska_parti_uyesi || 0), 0),
+      tc_hatali: kisiKayitlari.reduce((s, k) => s + (k.tc_seri_no_hatali || 0), 0),
+      imzasiz: kisiKayitlari.reduce((s, k) => s + (k.imzasiz || 0), 0),
     };
   }).filter(k => !filtre || k.isim.toLowerCase().includes(filtre.toLowerCase()))
     .sort((a, b) => b.yeni - a.yeni);
@@ -570,12 +584,33 @@ export default function App() {
               </select>
             </div>
             <div style={styles.grid5}>
-              {ALANLAR.map(a => (
-                <div key={a.key}>
-                  <label style={{ ...styles.label, fontSize: isMobile ? 10 : 12 }}>{isMobile ? a.short : a.label}</label>
-                  <input style={{ ...styles.input, textAlign: "center", background: a.key === "tc_seri_no_hatali" ? "#FFF8E1" : "#fff" }} type="number" min="0" placeholder="0" value={form[a.key]} onChange={e => setForm(p => ({ ...p, [a.key]: e.target.value }))} />
-                </div>
-              ))}
+              {ALANLAR.map(a => {
+                // Toplam Yapılabilir otomatik hesaplanır
+                if (a.key === "toplam_yapilabilir") {
+                  const toplam = (parseInt(form.yeni_uye) || 0) + 
+                                 (parseInt(form.silinmis_uye) || 0) + 
+                                 (parseInt(form.secmen_olmayan) || 0) + 
+                                 (parseInt(form.il_ilce_disi) || 0);
+                  return (
+                    <div key={a.key}>
+                      <label style={{ ...styles.label, fontSize: isMobile ? 10 : 12 }}>{isMobile ? a.short : a.label}</label>
+                      <input 
+                        style={{ ...styles.input, textAlign: "center", background: "#e8f5e9", fontWeight: "bold", color: "#2e7d32" }} 
+                        type="number" 
+                        value={toplam} 
+                        readOnly 
+                        disabled
+                      />
+                    </div>
+                  );
+                }
+                return (
+                  <div key={a.key}>
+                    <label style={{ ...styles.label, fontSize: isMobile ? 10 : 12 }}>{isMobile ? a.short : a.label}</label>
+                    <input style={{ ...styles.input, textAlign: "center", background: a.key === "tc_seri_no_hatali" ? "#FFF8E1" : "#fff" }} type="number" min="0" placeholder="0" value={form[a.key]} onChange={e => setForm(p => ({ ...p, [a.key]: e.target.value }))} />
+                  </div>
+                );
+              })}
             </div>
             <div style={{ marginBottom: 20 }}><label style={styles.label}>Notlar</label><input style={styles.input} placeholder="Özel not..." value={form.notlar} onChange={e => setForm(p => ({ ...p, notlar: e.target.value }))} /></div>
             {mesaj && <div style={{ ...styles.msg, background: mesaj.startsWith("✅") ? "#e8f5e9" : "#fdecea", color: mesaj.startsWith("✅") ? "#2e7d32" : "#c0392b" }}>{mesaj}</div>}
@@ -608,51 +643,42 @@ export default function App() {
             <input style={{ ...styles.input, marginBottom: 16 }} placeholder="🔍 İsim ara..." value={filtre} onChange={e => setFiltre(e.target.value)} />
 
             {isAdmin && gorunumModu === "kisiler" && (
-              <div>
+              <div style={{ overflowX: "auto" }}>
                 {!isMobile ? (
                   <table style={styles.table}>
                     <thead>
                       <tr>
                         <th style={styles.th}>İsim Soyisim</th>
                         <th style={styles.th}>Mahalle</th>
-                        <th style={{ ...styles.th, textAlign: "center" }}>Hedef</th>
-                        <th style={{ ...styles.th, textAlign: "center", color: "#2e7d32" }}>Yeni Üye</th>
-                        <th style={{ ...styles.th, textAlign: "center" }}>İlerleme</th>
                         <th style={{ ...styles.th, textAlign: "center" }}>Teslim</th>
+                        <th style={{ ...styles.th, textAlign: "center", background: "#e8f5e9" }}>Yapılabilir</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#2e7d32" }}>Yeni Üye</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>Silinmiş</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>Seçmen X</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>İl/İlçe X</th>
                         <th style={{ ...styles.th, textAlign: "center", color: "#c0392b" }}>Mük.</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>B.Parti</th>
+                        <th style={{ ...styles.th, textAlign: "center", color: "#FF8F00" }}>TC Hatalı</th>
+                        <th style={{ ...styles.th, textAlign: "center" }}>İmzasız</th>
                         <th style={styles.th}>İşlem</th>
                       </tr>
                     </thead>
                     <tbody>
                       {kisiOzeti.map(k => {
-                        const ilerlemeYuzde = k.hedef > 0 ? Math.min(100, Math.round((k.yeni / k.hedef) * 100)) : 0;
-                        const hedefDurumu = k.hedef > 0 ? (k.yeni >= k.hedef ? "tamamlandi" : k.yeni >= k.hedef * 0.7 ? "yaklasti" : "devam") : "yok";
                         return (
-                          <tr key={k.isim} style={{ background: k.kayit === 0 ? "#FFF8E1" : hedefDurumu === "tamamlandi" ? "#e8f5e9" : "#fff" }}>
+                          <tr key={k.isim} style={{ background: k.kayit === 0 ? "#FFF8E1" : "#fff" }}>
                             <td style={styles.td}><strong>{k.isim}</strong>{k.kayit === 0 && <span style={{ fontSize: 11, color: "#FF8F00", marginLeft: 8 }}>⚠️</span>}</td>
                             <td style={styles.td}><span style={styles.mahalleBadge}>{k.mahalle || "-"}</span></td>
-                            <td style={{ ...styles.td, textAlign: "center" }}>
-                              {hedefDuzenle === k.id ? (
-                                <input type="number" min="0" style={{ width: 60, padding: 4, textAlign: "center", border: "1px solid #ddd", borderRadius: 4 }} defaultValue={k.hedef} autoFocus
-                                  onBlur={(e) => hedefGuncelle(k.id, e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === "Enter") hedefGuncelle(k.id, e.target.value); if (e.key === "Escape") setHedefDuzenle(null); }} />
-                              ) : (
-                                <span style={{ cursor: "pointer", padding: "2px 8px", background: "#f0f0f0", borderRadius: 4 }} onClick={() => setHedefDuzenle(k.id)}>{k.hedef || "—"}</span>
-                              )}
-                            </td>
-                            <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</td>
-                            <td style={{ ...styles.td, textAlign: "center" }}>
-                              {k.hedef > 0 ? (
-                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                  <div style={{ width: 60, height: 8, background: "#e0e0e0", borderRadius: 4, overflow: "hidden" }}>
-                                    <div style={{ width: `${ilerlemeYuzde}%`, height: "100%", background: hedefDurumu === "tamamlandi" ? "#2e7d32" : hedefDurumu === "yaklasti" ? "#F4A620" : "#1A2942" }}></div>
-                                  </div>
-                                  <span style={{ fontSize: 11 }}>%{ilerlemeYuzde}</span>
-                                </div>
-                              ) : <span style={{ color: "#999", fontSize: 11 }}>—</span>}
-                            </td>
                             <td style={{ ...styles.td, textAlign: "center" }}>{k.teslim}</td>
-                            <td style={{ ...styles.td, textAlign: "center", color: k.muk > 0 ? "#c0392b" : "inherit" }}>{k.muk}</td>
+                            <td style={{ ...styles.td, textAlign: "center", background: "#e8f5e9", fontWeight: 600 }}>{k.toplam_yapilabilir}</td>
+                            <td style={{ ...styles.td, textAlign: "center", fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</td>
+                            <td style={{ ...styles.td, textAlign: "center" }}>{k.silinmis || 0}</td>
+                            <td style={{ ...styles.td, textAlign: "center" }}>{k.secmen_olmayan || 0}</td>
+                            <td style={{ ...styles.td, textAlign: "center" }}>{k.il_ilce_disi || 0}</td>
+                            <td style={{ ...styles.td, textAlign: "center", color: k.muk > 0 ? "#c0392b" : "inherit", fontWeight: k.muk > 0 ? 600 : 400 }}>{k.muk}</td>
+                            <td style={{ ...styles.td, textAlign: "center" }}>{k.baska_parti || 0}</td>
+                            <td style={{ ...styles.td, textAlign: "center", color: k.tc_hatali > 0 ? "#FF8F00" : "inherit", fontWeight: k.tc_hatali > 0 ? 600 : 400 }}>{k.tc_hatali || 0}</td>
+                            <td style={{ ...styles.td, textAlign: "center" }}>{k.imzasiz || 0}</td>
                             <td style={styles.td}><button style={{ fontSize: 14, background: "transparent", border: "none", cursor: "pointer" }} onClick={() => kisiSil(k.id)}>🗑️</button></td>
                           </tr>
                         );
@@ -669,9 +695,17 @@ export default function App() {
                         </div>
                         {seciliKisi === k.isim && (
                           <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #eee" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, marginBottom: 10 }}>
-                              <div>Hedef: <strong>{k.hedef || "—"}</strong></div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}>
                               <div>Teslim: <strong>{k.teslim}</strong></div>
+                              <div>Yapılabilir: <strong style={{ color: "#2e7d32" }}>{k.toplam_yapilabilir}</strong></div>
+                              <div>Yeni Üye: <strong style={{ color: "#2e7d32" }}>{k.yeni}</strong></div>
+                              <div>Silinmiş: <strong>{k.silinmis || 0}</strong></div>
+                              <div>Seçmen X: <strong>{k.secmen_olmayan || 0}</strong></div>
+                              <div>İl/İlçe X: <strong>{k.il_ilce_disi || 0}</strong></div>
+                              <div>Mükerrer: <strong style={{ color: "#c0392b" }}>{k.muk}</strong></div>
+                              <div>B.Parti: <strong>{k.baska_parti || 0}</strong></div>
+                              <div>TC Hatalı: <strong style={{ color: "#FF8F00" }}>{k.tc_hatali || 0}</strong></div>
+                              <div>İmzasız: <strong>{k.imzasiz || 0}</strong></div>
                             </div>
                             <button style={{ fontSize: 12, background: "#fdecea", color: "#c0392b", border: "none", borderRadius: 4, padding: "6px 12px", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); kisiSil(k.id); }}>🗑️ Sil</button>
                           </div>
