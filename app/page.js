@@ -501,10 +501,11 @@ export default function App() {
         kadinKollari: mahalleKisiler.filter(k => ["kadin_kollari", "kadin_mahalle"].includes(k.kategori)).map(k => k.isim_soyisim),
         hedef: toplamHedef,
         teslim: mahalleKayitlar.reduce((s, k) => s + (k.teslim_edilen || 0), 0),
+        toplam_yapilabilir: mahalleKayitlar.reduce((s, k) => s + (k.toplam_yapilabilir || 0), 0),
         yeni: mahalleKayitlar.reduce((s, k) => s + (k.yeni_uye || 0), 0),
         muk: mahalleKayitlar.reduce((s, k) => s + (k.mukerrer || 0), 0),
       };
-    }).sort((a, b) => b.yeni - a.yeni);
+    }).sort((a, b) => b.toplam_yapilabilir - a.toplam_yapilabilir);
   }
 
   const mahalleRaporu = mahalleBazliRapor();
@@ -519,10 +520,11 @@ export default function App() {
         kategori: kisi.kategori,
         hedef: kisi.hedef || 0,
         teslim: kisiKayitlari.reduce((s, k) => s + (k.teslim_edilen || 0), 0),
+        toplam_yapilabilir: kisiKayitlari.reduce((s, k) => s + (k.toplam_yapilabilir || 0), 0),
         yeni: kisiKayitlari.reduce((s, k) => s + (k.yeni_uye || 0), 0),
         muk: kisiKayitlari.reduce((s, k) => s + (k.mukerrer || 0), 0),
       };
-    }).sort((a, b) => b.yeni - a.yeni);
+    }).sort((a, b) => b.toplam_yapilabilir - a.toplam_yapilabilir);
   }
 
   const styles = {
@@ -829,19 +831,19 @@ export default function App() {
             {!seciliMahalle ? (
               <div>
                 {mahalleRaporu.map(m => {
-                  const ilerlemeYuzde = m.hedef > 0 ? Math.min(100, Math.round((m.yeni / m.hedef) * 100)) : 0;
                   return (
                     <div key={m.mahalle} style={{ background: "#f9f9f9", borderRadius: 8, padding: 14, marginBottom: 8, cursor: "pointer" }} onClick={() => setSeciliMahalle(m.mahalle)}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div><div style={{ fontWeight: 700, fontSize: 15 }}>{m.mahalle}</div><div style={{ fontSize: 11, color: "#888" }}>{m.kisiler.length} kişi</div></div>
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: 22, fontWeight: 700, color: "#2e7d32" }}>{m.yeni}{m.hedef > 0 && <span style={{ fontSize: 12, color: "#888", fontWeight: 400 }}>/{m.hedef}</span>}</div>
-                          {m.hedef > 0 && (
-                            <div style={{ width: 60, height: 6, background: "#e0e0e0", borderRadius: 3, marginTop: 4 }}>
-                              <div style={{ width: `${ilerlemeYuzde}%`, height: "100%", background: ilerlemeYuzde >= 100 ? "#2e7d32" : "#F4A620", borderRadius: 3 }}></div>
-                            </div>
-                          )}
+                          <div style={{ fontSize: 22, fontWeight: 700, color: "#2e7d32" }}>{m.toplam_yapilabilir}</div>
+                          <div style={{ fontSize: 10, color: "#888" }}>Yapılabilir</div>
                         </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#666", marginTop: 8 }}>
+                        <span>Teslim: <strong>{m.teslim}</strong></span>
+                        <span>Yeni: <strong>{m.yeni}</strong></span>
+                        <span style={{ color: "#c0392b" }}>Mük: <strong>{m.muk}</strong></span>
                       </div>
                     </div>
                   );
@@ -849,8 +851,9 @@ export default function App() {
                 <div style={styles.totalBar}>
                   <div style={{ fontWeight: 700 }}>TOPLAM</div>
                   <div style={{ display: "flex", gap: 20, marginTop: 6, fontSize: 14 }}>
-                    <span>Hedef: <strong>{mahalleRaporu.reduce((s, m) => s + m.hedef, 0)}</strong></span>
-                    <span style={{ color: "#F4A620" }}>Yeni Üye: <strong>{mahalleRaporu.reduce((s, m) => s + m.yeni, 0)}</strong></span>
+                    <span>Teslim: <strong>{mahalleRaporu.reduce((s, m) => s + m.teslim, 0)}</strong></span>
+                    <span style={{ color: "#F4A620" }}>Yapılabilir: <strong>{mahalleRaporu.reduce((s, m) => s + m.toplam_yapilabilir, 0)}</strong></span>
+                    <span>Yeni Üye: <strong>{mahalleRaporu.reduce((s, m) => s + m.yeni, 0)}</strong></span>
                   </div>
                 </div>
               </div>
@@ -862,7 +865,15 @@ export default function App() {
                   <div key={k.id} style={{ background: "#f9f9f9", borderRadius: 8, padding: 12, marginBottom: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div><div style={{ fontWeight: 600 }}>{k.isim}</div><div style={{ fontSize: 11, color: "#888" }}>{KAT_LABELS[k.kategori]?.icon} {KAT_LABELS[k.kategori]?.label}</div></div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: "#2e7d32" }}>{k.yeni}</div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: "#2e7d32" }}>{k.toplam_yapilabilir}</div>
+                        <div style={{ fontSize: 9, color: "#888" }}>Yapılabilir</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, fontSize: 10, color: "#666", marginTop: 6 }}>
+                      <span>Teslim: {k.teslim}</span>
+                      <span>Yeni: {k.yeni}</span>
+                      <span style={{ color: "#c0392b" }}>Mük: {k.muk}</span>
                     </div>
                   </div>
                 ))}
