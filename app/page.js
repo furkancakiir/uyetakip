@@ -796,10 +796,21 @@ export default function App() {
                   <div key={k.id} style={{ background: "#fff", borderRadius: 10, padding: 14, marginBottom: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                       <div><div style={{ fontWeight: 600, fontSize: 14 }}>{k.isim_soyisim}</div><div style={{ fontSize: 11, color: "#888" }}>{k.tutanak_tarih}</div></div>
-                      <div style={{ textAlign: "right" }}><div style={{ fontSize: 20, fontWeight: 700, color: "#2e7d32" }}>{k.yeni_uye}</div></div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 20, fontWeight: 700, color: "#2e7d32" }}>{k.toplam_yapilabilir || 0}</div>
+                        <div style={{ fontSize: 10, color: "#888" }}>Yapılabilir</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 12, fontSize: 11, color: "#666", marginBottom: 8, flexWrap: "wrap" }}>
+                      <span>Teslim: <strong>{k.teslim_edilen || 0}</strong></span>
+                      <span style={{ color: "#2e7d32" }}>Yeni: <strong>{k.yeni_uye || 0}</strong></span>
+                      <span>Silinmiş: <strong>{k.silinmis_uye || 0}</strong></span>
+                      <span>Seçmen X: <strong>{k.secmen_olmayan || 0}</strong></span>
+                      <span>İl/İlçe X: <strong>{k.il_ilce_disi || 0}</strong></span>
+                      <span style={{ color: "#c0392b" }}>Mük: <strong>{k.mukerrer || 0}</strong></span>
                     </div>
                     {isAdmin && (
-                      <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                         <button style={{ fontSize: 13, background: "#e3f2fd", color: "#1565c0", border: "none", borderRadius: 4, padding: "6px 12px", cursor: "pointer" }} onClick={() => duzenle(k)}>✏️</button>
                         <button style={{ fontSize: 13, background: "#fdecea", color: "#c0392b", border: "none", borderRadius: 4, padding: "6px 12px", cursor: "pointer" }} onClick={() => sil(k.id)}>🗑️</button>
                       </div>
