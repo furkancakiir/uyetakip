@@ -208,6 +208,77 @@ export default function App() {
     yukle(kullanici);
   }
 
+  // Excel Export fonksiyonu
+  function excelExport() {
+    // Tüm kategorilerdeki kişilerin özetini al
+    const tumKisiler = kisiler.map(kisi => {
+      const kisiKayitlari = kayitlar.filter(k => k.isim_soyisim === kisi.isim_soyisim);
+      return {
+        isim: kisi.isim_soyisim,
+        mahalle: kisi.mahalle || "",
+        kategori: KAT_LABELS[kisi.kategori]?.label || kisi.kategori,
+        teslim: kisiKayitlari.reduce((s, k) => s + (k.teslim_edilen || 0), 0),
+        toplam_yapilabilir: kisiKayitlari.reduce((s, k) => s + (k.toplam_yapilabilir || 0), 0),
+        yeni: kisiKayitlari.reduce((s, k) => s + (k.yeni_uye || 0), 0),
+        silinmis: kisiKayitlari.reduce((s, k) => s + (k.silinmis_uye || 0), 0),
+        secmen_olmayan: kisiKayitlari.reduce((s, k) => s + (k.secmen_olmayan || 0), 0),
+        il_ilce_disi: kisiKayitlari.reduce((s, k) => s + (k.il_ilce_disi || 0), 0),
+        muk: kisiKayitlari.reduce((s, k) => s + (k.mukerrer || 0), 0),
+        baska_parti: kisiKayitlari.reduce((s, k) => s + (k.baska_parti_uyesi || 0), 0),
+        tc_hatali: kisiKayitlari.reduce((s, k) => s + (k.tc_seri_no_hatali || 0), 0),
+        imzasiz: kisiKayitlari.reduce((s, k) => s + (k.imzasiz || 0), 0),
+      };
+    }).sort((a, b) => b.yeni - a.yeni);
+
+    // CSV oluştur (Excel uyumlu, UTF-8 BOM ile)
+    const headers = ["İsim Soyisim", "Mahalle", "Kategori", "Teslim", "Yapılabilir", "Yeni Üye", "Silinmiş", "Seçmen Olmayan", "İl/İlçe Dışı", "Mükerrer", "Başka Parti", "TC Hatalı", "İmzasız"];
+    
+    let csv = "\uFEFF"; // UTF-8 BOM for Excel Turkish character support
+    csv += headers.join(";") + "\n";
+    
+    tumKisiler.forEach(k => {
+      csv += [
+        k.isim,
+        k.mahalle,
+        k.kategori,
+        k.teslim,
+        k.toplam_yapilabilir,
+        k.yeni,
+        k.silinmis,
+        k.secmen_olmayan,
+        k.il_ilce_disi,
+        k.muk,
+        k.baska_parti,
+        k.tc_hatali,
+        k.imzasiz
+      ].join(";") + "\n";
+    });
+
+    // Toplamlar satırı
+    const toplam = {
+      teslim: tumKisiler.reduce((s, k) => s + k.teslim, 0),
+      toplam_yapilabilir: tumKisiler.reduce((s, k) => s + k.toplam_yapilabilir, 0),
+      yeni: tumKisiler.reduce((s, k) => s + k.yeni, 0),
+      silinmis: tumKisiler.reduce((s, k) => s + k.silinmis, 0),
+      secmen_olmayan: tumKisiler.reduce((s, k) => s + k.secmen_olmayan, 0),
+      il_ilce_disi: tumKisiler.reduce((s, k) => s + k.il_ilce_disi, 0),
+      muk: tumKisiler.reduce((s, k) => s + k.muk, 0),
+      baska_parti: tumKisiler.reduce((s, k) => s + k.baska_parti, 0),
+      tc_hatali: tumKisiler.reduce((s, k) => s + k.tc_hatali, 0),
+      imzasiz: tumKisiler.reduce((s, k) => s + k.imzasiz, 0),
+    };
+    
+    csv += ["TOPLAM", "", "", toplam.teslim, toplam.toplam_yapilabilir, toplam.yeni, toplam.silinmis, toplam.secmen_olmayan, toplam.il_ilce_disi, toplam.muk, toplam.baska_parti, toplam.tc_hatali, toplam.imzasiz].join(";") + "\n";
+
+    // Dosyayı indir
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const tarih = new Date().toISOString().split("T")[0];
+    link.href = URL.createObjectURL(blob);
+    link.download = `uye_takip_raporu_${tarih}.csv`;
+    link.click();
+  }
+
   // Telegram bildirim fonksiyonu
   async function telegramBildirimGonder(telegramId, isim, kayit) {
     const TELEGRAM_API = "https://api.telegram.org/bot8685265365:AAFVhfEyu93a5THUFGh83YBEpbNhFBeDMa4/sendMessage";
@@ -637,6 +708,7 @@ export default function App() {
               <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
                 <button onClick={() => setGorunumModu("kisiler")} style={{ ...styles.tab, background: gorunumModu === "kisiler" ? "#2e7d32" : "#e0e0e0", color: gorunumModu === "kisiler" ? "#fff" : "#555" }}>👥 Kişiler</button>
                 <button onClick={() => setGorunumModu("kayitlar")} style={{ ...styles.tab, background: gorunumModu === "kayitlar" ? "#2e7d32" : "#e0e0e0", color: gorunumModu === "kayitlar" ? "#fff" : "#555" }}>📋 Kayıtlar</button>
+                <button onClick={excelExport} style={{ ...styles.tab, background: "#217346", color: "#fff" }}>📊 Excel</button>
                 <button onClick={() => { setKisiModal(true); setYeniKisi(p => ({ ...p, kategori: aktifKategori })); }} style={{ ...styles.tab, background: "#F4A620", color: "#1A2942", marginLeft: "auto" }}>➕ Kişi Ekle</button>
               </div>
             )}
